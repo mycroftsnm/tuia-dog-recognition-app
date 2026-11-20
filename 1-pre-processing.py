@@ -520,8 +520,7 @@ else:
 
 # %%
 # Umbrales de filtrado
-MIN_SIDE = 96
-BLUR_THRESHOLD = 100.0
+BLUR_THRESHOLD = 40
 BRIGHTNESS_MIN = 15.0
 BRIGHTNESS_MAX = 240.0
 
