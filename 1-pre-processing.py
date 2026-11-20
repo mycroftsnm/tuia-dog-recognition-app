@@ -525,32 +525,29 @@ BRIGHTNESS_MIN = 15.0
 BRIGHTNESS_MAX = 240.0
 
 # %%
-# Reglas visuales 1-4 en un único `when/then` encadenado: la primera que dispara queda
+# Reglas visuales 1-3 en un único `when/then` encadenado: la primera que dispara queda
 # registrada en `quality_rule`. Las que pasan pasan a la etapa de duplicados.
 quality = image_meta.with_columns(
     pl.min_horizontal("width", "height").alias("min_side")
 ).with_columns(
     pl.when(~pl.col("readable"))
-    .then(pl.lit("1. No legible o corrupta"))
-    .when(pl.col("min_side") < MIN_SIDE)
-    .then(pl.lit("2. Resolución menor a 96 px"))
+    .then(pl.lit("R1: No legible o corrupta"))
     .when(pl.col("laplacian_var") < BLUR_THRESHOLD)
-    .then(pl.lit("3. Borrosa (Laplaciano bajo)"))
+    .then(pl.lit("R2: Borrosa (Laplaciano < {})".format(BLUR_THRESHOLD)))
     .when((pl.col("brightness") < BRIGHTNESS_MIN) | (pl.col("brightness") > BRIGHTNESS_MAX))
-    .then(pl.lit("4. Exposición extrema"))
+    .then(pl.lit("R3: {} < Brillo < {}".format(BRIGHTNESS_MIN, BRIGHTNESS_MAX)))
     .otherwise(pl.lit("Pasa reglas visuales"))
     .alias("quality_rule")
 )
 
-if not quality.is_empty():
-    mostrar(
-        quality.group_by(["quality_rule", "split"])
-        .len()
-        .rename({"len": "images"})
-        .sort(["quality_rule", "split"])
-    )
-else:
-    print("Sin imágenes para aplicar reglas visuales.")
+
+mostrar(
+    quality.group_by(["quality_rule", "split"])
+    .len()
+    .rename({"len": "images"})
+    .sort(["quality_rule", "split"])
+)
+
 
 # %% [markdown]
 # Para duplicados usamos **SHA-256** (archivos exactamente idénticos). Como el mismo archivo
@@ -624,14 +621,14 @@ duplicate_flags = mark_duplicates(
     visual_pass.select(["path", "split", "breed"]), DATASET_DIR
 )
 
-# Combinamos la regla 5 con las reglas visuales: si es duplicado, pisa la regla anterior.
+# Combinamos la regla 4 con las reglas visuales: si es duplicado, pisa la regla anterior.
 quality = quality.join(
     duplicate_flags.select(["path", "is_duplicate", "duplicate_of", "duplicate_of_split"]),
     on="path",
     how="left",
 ).with_columns(
     pl.when(pl.col("is_duplicate"))
-    .then(pl.lit("5. Duplicado exacto"))
+    .then(pl.lit("R4: Duplicado exacto"))
     .otherwise(pl.col("quality_rule"))
     .alias("quality_rule")
 )
@@ -677,7 +674,7 @@ def show_rejected_examples(
             examples = rule_examples.filter(pl.col("split") == split).head(n)
 
             # Los duplicados se muestran de a pares: descartada vs. la copia conservada.
-            if rule.startswith("5."):
+            if rule.startswith("R4:"):
                 fig, axes = plt.subplots(
                     examples.height, 2, figsize=(8, 4 * examples.height), squeeze=False
                 )
@@ -691,7 +688,7 @@ def show_rejected_examples(
                             ax.imshow(image.convert("RGB"))
                         ax.set_title(f"{row['breed']}\n{title}", fontsize=9)
                         ax.axis("off")
-                fig.suptitle(f"Rechazo: {rule} — {split}", fontsize=12)
+                fig.suptitle(f"Rechazos {rule} — {split}", fontsize=12)
                 plt.tight_layout()
                 plt.show()
                 continue
@@ -714,7 +711,7 @@ def show_rejected_examples(
                 )
                 ax.axis("off")
 
-            fig.suptitle(f"Rechazo: {rule} — {split}", fontsize=12)
+            fig.suptitle(f"Rechazos {rule} — {split}", fontsize=12)
             plt.tight_layout()
             plt.show()
 
