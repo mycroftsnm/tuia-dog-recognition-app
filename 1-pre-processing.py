@@ -927,3 +927,91 @@ def show_rejected_examples(
 
 
 show_rejected_examples(quality, DATASET_DIR)
+
+# %% [markdown]
+# ## 3.4 Conjunto independiente de evaluación
+#
+# Es el conjunto que mide el comportamiento "en el mundo real" y se usa en las tres etapas.
+# Reglas:
+# - Imágenes **que no pertenecen al dataset** (internet o fotos propias).
+# - Mismas razas que las carpetas del dataset.
+# - Incluir imágenes "limpias" (un perro bien encuadrado) para Etapas 1 y 2, y escenas con
+#   varios perros / personas / objetos e imágenes **sin perros** para la Etapa 3.
+# - Meta: **al menos 100 imágenes** que cubran **20 razas o más**, incluyendo razas fáciles
+#   de confundir.
+# - Mismo criterio de calidad que los splits (legibilidad, blur < 40, brillo [15, 240]) y sin
+#   duplicados contra el dataset.
+#
+# Las guardamos fuera del control de versiones en `data/dataset/independent/<raza>/`
+# (ya cubierto por `.gitignore`) y documentamos fuente y licencia de cada imagen en un
+# manifiesto CSV.
+
+# %%
+# Creamos la carpeta del conjunto independiente y definimos el manifiesto con fuente/licencia.
+INDEPENDENT_DIR = DATASET_DIR / "independent"
+INDEPENDENT_MANIFEST = SPLITS_DIR / "independent_manifest.csv"
+
+INDEPENDENT_DIR.mkdir(parents=True, exist_ok=True)
+INDEPENDENT_MANIFEST.parent.mkdir(parents=True, exist_ok=True)
+
+INDEPENDENT_SCHEMA = {
+    "breed": pl.String,
+    "path": pl.String,
+    "filename": pl.String,
+    "source": pl.String,
+    "license": pl.String,
+    "has_dog": pl.Boolean,
+    "multiple_dogs": pl.Boolean,
+}
+
+
+def load_independent_manifest(manifest_path: Path) -> pl.DataFrame:
+    """Carga el manifiesto independiente si existe; si no, devuelve uno vacío."""
+    if manifest_path.exists():
+        return pl.read_csv(manifest_path)
+    return pl.DataFrame(schema=INDEPENDENT_SCHEMA)
+
+
+def scan_independent(independent_dir: Path) -> pl.DataFrame:
+    """Escanea las imágenes ya descargadas en el conjunto independiente."""
+    records = []
+    if independent_dir.is_dir():
+        for image_path in sorted(independent_dir.rglob("*")):
+            if image_path.is_file() and image_path.suffix.lower() in IMAGE_SUFFIXES:
+                records.append(
+                    {
+                        "breed": image_path.parent.name,
+                        "path": image_path.relative_to(DATASET_DIR).as_posix(),
+                        "filename": image_path.name,
+                    }
+                )
+    return pl.from_dicts(
+        records,
+        schema={"breed": pl.String, "path": pl.String, "filename": pl.String},
+    )
+
+
+independent_images = scan_independent(INDEPENDENT_DIR)
+print(f"Imágenes independientes encontradas: {independent_images.height}")
+
+manifest = load_independent_manifest(INDEPENDENT_MANIFEST)
+if manifest.is_empty():
+    print("Manifiesto vacío: completar breed, source y license por cada imagen descargada.")
+else:
+    resumen_independiente = (
+        manifest.group_by("breed")
+        .len()
+        .rename({"len": "images"})
+        .sort("images", descending=True)
+    )
+    mostrar(resumen_independiente)
+
+# %% [markdown]
+# **TODO generar dataset independiente**
+#  El manifiesto `splits/independent_manifest.csv` se completa a medida que el equipo descarga fotos propias o de
+# internet. Para cada imagen se registra `breed`, `path`, `source` (URL o "foto propia") y
+# `license` (por ejemplo CC BY 4.0, CC BY-SA 4.0, o "foto propia"). Las imágenes sin perro (gatos,
+# escenas urbanas) van en una carpeta especial `independent/sin_perro/` con `has_dog=False` para
+# probar falsos positivos del detector en la Etapa 3.
+#
+
