@@ -1106,3 +1106,102 @@ else:
     show_pipeline_examples(independent_preview.select(["breed", "path"]), DATASET_DIR)
 
 
+# %% [markdown]
+# ## 3.7 Partición de datos
+#
+# Los splits se redefinen sobre el dataset de kaggle ya filtrado: **70 % train / 15 % valid / 15 % test**,
+# **balanceado por clase**. Para cada raza se mezcla y se asignan 15% a valid,
+# 15% a test y el resto a train.
+#
+# Sobre el conjunto de train resultante, se aplica el pipeline de augmentation offline:
+# Se generan copias de las razas con menos
+# imágenes hasta que todas tengan la cantidad de la más numerosa, se escriben en
+# `data/dataset/augmented/` (no versionado) y se registran en `splits/train_augmented.csv`.
+#
+#
+
+# %%
+# Reparto 70/15/15 por clase, reproducible y balanceado.
+VALID_FRACTION = 0.15
+TEST_FRACTION = 0.15
+
+
+def split_by_class(
+    df: pl.DataFrame,
+    valid_fraction: float = VALID_FRACTION,
+    test_fraction: float = TEST_FRACTION,
+    seed: int = SEED,
+) -> pl.DataFrame:
+    """Asigna train/valid/test por clase respetando las fracciones (mínimo 1 por split).
+
+    Cada raza se mezcla con una semilla propia (`seed + índice`) para que el reparto sea
+    reproducible e independiente del orden de las filas.
+    """
+    parts = []
+    for index, breed in enumerate(sorted(df["breed"].unique().to_list())):
+        group = df.filter(pl.col("breed") == breed)
+        shuffled = group.sample(n=group.height, shuffle=True, seed=seed + index)
+        n = shuffled.height
+        n_valid = max(1, int(round(valid_fraction * n)))
+        n_test = max(1, int(round(test_fraction * n)))
+        n_train = n - n_valid - n_test
+        if n_train < 1:  # clases muy chicas: se recortan valid/test
+            n_train = 1
+            n_valid = max(1, (n - 1) // 2)
+            n_test = n - 1 - n_valid
+        parts.append(
+            shuffled.with_row_index("pos")
+            .with_columns(
+                pl.when(pl.col("pos") < n_valid)
+                .then(pl.lit("valid"))
+                .when(pl.col("pos") < n_valid + n_test)
+                .then(pl.lit("test"))
+                .otherwise(pl.lit("train"))
+                .alias("split")
+            )
+            .drop("pos")
+        )
+    return pl.concat(parts).sort(["split", "breed", "path"])
+
+
+# %%
+# Splits finales sobre el conjunto filtrado.
+final = split_by_class(accepted.select(["breed", "path", "filename"])).select(
+    ["split", "breed", "path", "filename"]
+)
+SPLITS_DIR.mkdir(parents=True, exist_ok=True)
+
+for split in ("train", "valid", "test"):
+    subset = final.filter(pl.col("split") == split)
+    subset.write_csv(SPLITS_DIR / f"{split}.csv")
+    print(f"{split}.csv: {subset.height} imágenes")
+
+final.write_csv(SPLITS_DIR / "all.csv")
+
+discarded = (
+    quality.filter(pl.col("quality_rule") != "Pasa reglas visuales")
+    .select(["split", "breed", "path", "quality_rule", "duplicate_of", "duplicate_of_split"])
+    .rename({"split": "split_original"})
+    .sort(["split_original", "breed", "path"])
+)
+discarded.write_csv(SPLITS_DIR / "descartadas.csv")
+print(f"descartadas.csv: {discarded.height} imágenes (columna split_original)")
+
+per_breed = final.group_by(["split", "breed"]).len()
+resumen_splits = (
+    per_breed.group_by("split")
+    .agg(
+        pl.len().alias("razas"),
+        pl.col("len").sum().alias("imágenes"),
+        pl.col("len").min().alias("mín por raza"),
+        pl.col("len").max().alias("máx por raza"),
+    )
+    .sort("split")
+)
+mostrar(resumen_splits)
+print(
+    "proporción: "
+    f"{ {row['split']: round(row['imágenes'] / final.height, 3) for row in resumen_splits.iter_rows(named=True)} }"
+)
+
+
