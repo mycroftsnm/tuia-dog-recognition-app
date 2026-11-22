@@ -1015,3 +1015,94 @@ else:
 # probar falsos positivos del detector en la Etapa 3.
 #
 
+# %% [markdown]
+# ## 3.5 Preprocesamiento
+#
+# El preprocesamiento vive como módulo en **`src/lib/image_pipeline.py`**
+#
+# Pipeline de preprocesamiento:
+#
+# - **Orden de canales:** la app y OpenCV entregan **BGR**; PIL y torchvision trabajan en **RGB**.
+#   `bgr_to_rgb` es el único lugar donde se hace esa conversión.
+# - **Encuadre: letterbox** (escala preservando aspecto + relleno reflejo hasta 224×224). Se
+#   prefiere al resize directo (deforma) y al center-crop (corta patas y orejas). Como el dataset
+#   ya es cuadrado, en `train`/`valid`/`test` el letterbox es la identidad; en la Etapa 3 actúa
+#   sobre los recortes de YOLO, que no son cuadrados.
+# - **Normalización:** media y desvío de **ImageNet**, que es lo que esperan los modelos
+#   preentrenados. La CNN propia usa las mismas para poder comparar y reutilizar el pipeline.
+# - **Escala:** píxeles a `[0, 1]` y después `(x - media) / desvío`, y `HWC → CHW`.
+#
+# En las celdas de abajo se aplica el pipeline a 4 imágenes del dataset: el tensor desnormalizado
+# se ve **igual** que el original porque en 224×224 la geometría es no-op; lo que cambió son los
+# valores (BGR→RGB, [0,1], media/desvío) y el orden de ejes. El bloque del conjunto independiente
+# queda como **placeholder** hasta que esté recolectado: ahí el letterbox sí actúa (pueden no ser
+# 224×224) y se va a ver el padding.
+
+# %%
+# El pipeline de imagen se importa del módulo compartido con la app.
+from lib.image_pipeline import (
+    IMAGE_SIZE,
+    bgr_to_rgb,
+    denormalize,
+    expand_box,
+    letterbox,
+    preprocess,
+    to_batch,
+)
+
+# %%
+# Verificación del pipeline: formas, rango y que BGR→RGB coincida con PIL.
+
+sample_path = accepted.sample(n=1, seed=SEED)["path"][0]
+sample_bgr = cv2.imread(str(DATASET_DIR / sample_path))
+sample_pre = preprocess(sample_bgr)
+
+print(f"Imagen de ejemplo: {sample_path}")
+print(f"original:     {sample_bgr.shape} {sample_bgr.dtype} (BGR uint8)")
+print(f"preprocesada: {sample_pre.shape} {sample_pre.dtype} (CHW float32, ImageNet)")
+print(f"batch:        {to_batch(sample_pre).shape}")
+print(f"rango: [{sample_pre.min():.2f}, {sample_pre.max():.2f}]")
+print(f"media por canal de esta imagen (el dataset da ~0): {np.round(sample_pre.mean(axis=(1, 2)), 3)}")
+
+with Image.open(DATASET_DIR / sample_path) as image:
+    rgb_pil = np.asarray(image.convert("RGB"))
+print(f"BGR→RGB coincide con PIL: {np.array_equal(bgr_to_rgb(sample_bgr), rgb_pil)}")
+
+# %%
+# El pipeline sobre imágenes reales: original vs. preprocesado (desnormalizado).
+def show_pipeline_examples(samples: pl.DataFrame, dataset_dir: Path) -> None:
+    """Muestra original vs. preprocesado para cada imagen de `samples` (una columna por imagen)."""
+    figure, axes = plt.subplots(2, samples.height, figsize=(3.2 * samples.height, 6.4), squeeze=False)
+    for column, row in enumerate(samples.iter_rows(named=True)):
+        image = cv2.imread(str(dataset_dir / row["path"]))
+        if image is None:
+            continue
+        tensor = preprocess(image)
+        axes[0, column].imshow(bgr_to_rgb(image))
+        axes[0, column].set_title(
+            f"{row['breed']}\noriginal {image.shape[1]}x{image.shape[0]}", fontsize=8
+        )
+        axes[1, column].imshow(denormalize(tensor))
+        axes[1, column].set_title(f"preprocesado\n{tensor.shape} float32", fontsize=8)
+    for ax in axes.flat:
+        ax.axis("off")
+    figure.suptitle("Pipeline aplicado a imágenes del dataset", fontsize=12)
+    plt.tight_layout()
+    plt.show()
+
+
+kaggle_samples = accepted.sample(n=4, seed=SEED).select(["breed", "path"])
+show_pipeline_examples(kaggle_samples, DATASET_DIR)
+
+# %%
+# Placeholder: mismo control con el conjunto independiente, cuando esté recolectado.
+independent_preview = scan_independent(INDEPENDENT_DIR).head(4)
+if independent_preview.is_empty():
+    print(
+        "Pendiente: cuando exista el conjunto independiente, esta celda muestra el pipeline "
+        "sobre 4 imágenes suyas. Ahí el letterbox sí actúa (pueden no ser 224x224)."
+    )
+else:
+    show_pipeline_examples(independent_preview.select(["breed", "path"]), DATASET_DIR)
+
+
