@@ -542,18 +542,18 @@ else:
 # ## 3.3 Control de calidad y filtrado
 #
 # Aplicamos reglas **explícitas y en orden**, y reportamos cuántas imágenes descarta cada
-# una. El orden es eficiente: primero lo barato (legibilidad, tamaño), después lo que ya
+# una. El orden es eficiente: primero lo barato (legibilidad), después lo que ya
 # está calculado (borrosidad, exposición) y al final los duplicados.
 #
 # Reglas:
 # 1. Archivo corrupto o que no se puede decodificar.
-# 2. Lado mínimo de resolución < 96 px.
-# 3. Varianza del Laplaciano < 100 (imagen borrosa).
-# 4. Brillo extremo (fuera de [15, 240] en escala de grises).
-# 5. Duplicados exactos (archivos idénticos, SHA-256).
+# 2. Varianza del Laplaciano < 40 (imagen borrosa).
+# 3. Brillo extremo (fuera de [15, 240] en escala de grises).
+# 4. Duplicados exactos (archivos idénticos, SHA-256).
+# 5. Casi-duplicados (misma foto recomprimida o redimensionada).
 #
-# El filtrado se aplica a los tres splits por igual; en duplicados entre splits conservamos
-# la copia de `train` y descartamos la de `valid`/`test` para evitar fuga de datos.
+# El filtrado se aplica a los tres splits por igual. De cada grupo de duplicados se conserva
+# **una copia**; los splits se redefinen en 3.7 sobre el conjunto ya limpio.
 
 # %%
 # Umbrales de filtrado
@@ -668,6 +668,179 @@ quality = quality.join(
     .then(pl.lit("R4: Duplicado exacto"))
     .otherwise(pl.col("quality_rule"))
     .alias("quality_rule")
+)
+
+# %% [markdown]
+# El SHA-256 solo detecta archivos idénticos. Para la **misma foto recomprimida o redimensionada**
+# usamos un **dHash de 64 bits** como filtro de candidatos y después confirmamos cada par con una
+# **correlación ≥ 0,99** en gris 128×128 (tolerando ±3 px): así no se descarta una foto por
+# parecerse a otra.
+
+# %%
+DHASH_MAX_DISTANCE = 6
+SAME_PHOTO_MIN_CORR = 0.99
+POPCOUNT = np.unpackbits(np.arange(256, dtype=np.uint8)[:, None], axis=1).sum(1).astype(np.uint8)
+GRAY_CACHE: dict[str, np.ndarray | None] = {}
+
+
+def dhash64(image: np.ndarray) -> str:
+    """dHash de 64 bits en hexadecimal: compara píxeles vecinos en una versión 9×8 en grises."""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+    small = cv2.resize(gray, (9, 8), interpolation=cv2.INTER_AREA)
+    return np.packbits((small[:, 1:] > small[:, :-1]).flatten()).tobytes().hex()
+
+
+def small_gray(path: str, dataset_dir: Path, size: int = 128) -> np.ndarray | None:
+    """Versión chica en grises, cacheada para comparar pares."""
+    if path not in GRAY_CACHE:
+        image = cv2.imread(str(dataset_dir / path), cv2.IMREAD_GRAYSCALE)
+        GRAY_CACHE[path] = (
+            None
+            if image is None
+            else cv2.resize(image, (size, size), interpolation=cv2.INTER_AREA).astype(np.float32)
+        )
+    return GRAY_CACHE[path]
+
+
+def correlation(a: np.ndarray, b: np.ndarray) -> float:
+    """Correlación de Pearson entre dos imágenes en gris."""
+    a = (a - a.mean()) / (a.std() + 1e-6)
+    b = (b - b.mean()) / (b.std() + 1e-6)
+    return float((a * b).mean())
+
+
+def same_photo(
+    path_a: str,
+    path_b: str,
+    dataset_dir: Path,
+    min_corr: float = SAME_PHOTO_MIN_CORR,
+    max_shift: int = 3,
+) -> bool:
+    """Decide si dos imágenes son la misma foto (recomprimida), no solo parecidas."""
+    a, b = small_gray(path_a, dataset_dir), small_gray(path_b, dataset_dir)
+    if a is None or b is None:
+        return False
+    if correlation(a, b) >= min_corr:
+        return True
+    for dy in range(-max_shift, max_shift + 1):
+        for dx in range(-max_shift, max_shift + 1):
+            if correlation(a, np.roll(np.roll(b, dy, axis=0), dx, axis=1)) >= min_corr:
+                return True
+    return False
+
+
+def mark_near_duplicates(
+    candidates: pl.DataFrame,
+    dataset_dir: Path,
+    max_distance: int = DHASH_MAX_DISTANCE,
+    min_corr: float = SAME_PHOTO_MIN_CORR,
+) -> pl.DataFrame:
+    """Devuelve `candidates` con `near_duplicate_of`, `near_duplicate_of_split` e `is_near_duplicate`.
+
+    Agrupa por dHash a distancia de Hamming ≤ `max_distance` y confirma cada arista con
+    `same_photo`. Se conserva una copia por grupo (prioridad test > valid > train).
+    """
+    if candidates.is_empty():
+        return candidates.with_columns(
+            pl.lit(None, dtype=pl.String).alias("near_duplicate_of"),
+            pl.lit(None, dtype=pl.String).alias("near_duplicate_of_split"),
+            pl.lit(False).alias("is_near_duplicate"),
+        )
+
+    records = []
+    for row in candidates.iter_rows(named=True):
+        image = cv2.imread(str(dataset_dir / row["path"]), cv2.IMREAD_GRAYSCALE)
+        records.append(
+            {
+                "path": row["path"],
+                "split": row["split"],
+                "dhash": dhash64(image) if image is not None else None,
+            }
+        )
+    hashed = pl.from_dicts(records).filter(pl.col("dhash").is_not_null())
+
+    priority = pl.DataFrame({"split": ["test", "valid", "train"], "split_priority": [0, 1, 2]})
+    hashed = hashed.join(priority, on="split", how="left").sort(["split_priority", "path"])
+
+    paths = hashed["path"].to_list()
+    hashes = np.stack([np.frombuffer(bytes.fromhex(h), dtype=np.uint8) for h in hashed["dhash"]])
+
+    parent = list(range(len(paths)))
+
+    def find(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        root_left, root_right = find(left), find(right)
+        if root_left != root_right:
+            parent[root_left] = root_right
+
+    for index in range(len(paths) - 1):
+        distances = POPCOUNT[np.bitwise_xor(hashes[index + 1 :], hashes[index])].sum(axis=1)
+        for offset in np.flatnonzero(distances <= max_distance):
+            other = index + 1 + int(offset)
+            if find(index) == find(other):
+                continue
+            if same_photo(paths[index], paths[other], dataset_dir, min_corr):
+                union(index, other)
+
+    groups: dict[int, list[int]] = {}
+    for index in range(len(paths)):
+        groups.setdefault(find(index), []).append(index)
+
+    duplicates: dict[str, tuple[str, str]] = {}
+    for component in groups.values():
+        kept = component[0]
+        for position in component[1:]:
+            duplicates[paths[position]] = (paths[kept], hashed["split"][kept])
+
+    if duplicates:
+        dup_df = pl.DataFrame(
+            {
+                "path": list(duplicates.keys()),
+                "near_duplicate_of": [value[0] for value in duplicates.values()],
+                "near_duplicate_of_split": [value[1] for value in duplicates.values()],
+            }
+        )
+    else:
+        dup_df = pl.DataFrame(
+            {"path": [], "near_duplicate_of": [], "near_duplicate_of_split": []},
+            schema={
+                "path": pl.String,
+                "near_duplicate_of": pl.String,
+                "near_duplicate_of_split": pl.String,
+            },
+        )
+
+    return candidates.join(dup_df, on="path", how="left").with_columns(
+        pl.col("near_duplicate_of").is_not_null().alias("is_near_duplicate")
+    )
+
+
+# %%
+# Combinamos la regla 5 con las anteriores: si no era duplicado exacto pero es casi-duplicado,
+# pisa la regla y completa `duplicate_of` para poder mostrarlo de a pares.
+visual_pass = quality.filter(pl.col("quality_rule") == "Pasa reglas visuales")
+near_flags = mark_near_duplicates(visual_pass.select(["path", "split", "breed"]), DATASET_DIR)
+
+quality = quality.join(
+    near_flags.select(
+        ["path", "is_near_duplicate", "near_duplicate_of", "near_duplicate_of_split"]
+    ),
+    on="path",
+    how="left",
+).with_columns(
+    pl.when(pl.col("is_near_duplicate"))
+    .then(pl.lit("R5: Casi duplicado (misma foto)"))
+    .otherwise(pl.col("quality_rule"))
+    .alias("quality_rule"),
+    pl.coalesce([pl.col("duplicate_of"), pl.col("near_duplicate_of")]).alias("duplicate_of"),
+    pl.coalesce([pl.col("duplicate_of_split"), pl.col("near_duplicate_of_split")]).alias(
+        "duplicate_of_split"
+    ),
 )
 
 # %%
