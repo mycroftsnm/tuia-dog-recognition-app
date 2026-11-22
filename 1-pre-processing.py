@@ -422,48 +422,79 @@ def show_breed_grid(
 show_breed_grid(image_meta.filter(pl.col("split") == "train"), DATASET_DIR)
 
 # %%
-CONFUSABLE_BREEDS = ["Cockapoo", "Poodle", "Labradoodle"] #["American Hairless", "Chinese Crested", "Mex Hairless"]
+CONFUSABLE_BREEDS = ["Cockapoo", "Poodle", "Labradoodle"]
 
-# Muestra una comparación visual de razas fáciles de confundir.
+
+def to_image_uri(path: Path, size: int = 160) -> str:
+    """Miniatura como data URI JPEG, para que Altair la muestre sin depender de un servidor."""
+    image = cv2.imread(str(path))
+    if image is None:
+        return ""
+    image = cv2.resize(image, (size, size), interpolation=cv2.INTER_AREA)
+    _, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return "data:image/jpeg;base64," + base64.b64encode(buffer.tobytes()).decode()
+
+
+# Muestra una comparación visual de razas fáciles de confundir: imágenes mezcladas (no agrupadas
+# por raza) y tooltip con la raza real, para ver cuánto se parecen entre sí.
 def show_breed_comparison(
     meta: pl.DataFrame,
     dataset_dir: Path,
     breeds: list[str] = CONFUSABLE_BREEDS,
-    n_samples: int = 5,
-    seed: int | None = None,
+    n_samples: int = 6,
+    columns: int = 6,
+    seed: int = SEED,
 ) -> None:
-    """Muestra una grilla comparando una lista arbitraria de razas."""
-    readable_meta = meta.filter(pl.col("readable"))
-    if readable_meta.is_empty():
-        print("No hay imágenes legibles para mostrar.")
+    """Muestra una grilla Altair con razas parecidas en posiciones aleatorias."""
+    readable_meta = meta.filter(pl.col("readable"), pl.col("split") == "train")
+    available = [breed for breed in breeds if breed in readable_meta["breed"].to_list()]
+    if not available:
+        print("No hay imágenes legibles para las razas pedidas.")
         return
 
-
-    n_breeds = len(breeds)
-    fig, axes = plt.subplots(
-        n_breeds, n_samples, figsize=(2.5 * n_samples, 2.5 * n_breeds), squeeze=False
+    samples = (
+        readable_meta.filter(pl.col("breed").is_in(available))
+        .sample(fraction=1.0, shuffle=True, seed=seed)  # mezcla todas las imágenes
+        .group_by("breed")
+        .head(n_samples)                                # n_samples por raza
+        .sample(fraction=1.0, shuffle=True, seed=seed)  # mezcla los samples
+        .select("path", "breed", "filename")
+        .to_dicts()
     )
 
-
-    breed_meta = readable_meta.filter(pl.col("breed").is_in(breeds), pl.col("split") == "train")
-    paths = (
-        breed_meta.sample(n=n_samples * n_breeds, seed=seed)["path"]
-        .to_list()
+    rows = len(samples) // columns + (1 if len(samples) % columns else 0)
+    images = pl.DataFrame(
+        [
+            {
+                "column": index % columns,
+                "row": rows - 1 - index // columns,
+                "image": to_image_uri(dataset_dir / sample["path"]),
+                "breed": sample["breed"],
+                "filename": sample["filename"],
+            }
+            for index, sample in enumerate(samples)
+        ]
     )
-    #random.shuffle(paths)
 
-    print(len(paths))
-
-    for i in range(n_breeds):
-        for j in range(n_samples):
-            ax = axes[i, j]
-            with Image.open(dataset_dir / paths[i*n_samples + j]) as image:
-                ax.imshow(image.convert("RGB"))
-            ax.axis("off")
-
-    fig.suptitle("Razas fáciles de confundir: {}".format(", ".join(breeds)), fontsize=12)
-    plt.tight_layout()
-    plt.show()
+    chart = (
+        alt.Chart(inline(images))
+        .mark_image(width=172, height=172)
+        .encode(
+            x=alt.X("column:O", axis=None, title=None),
+            y=alt.Y("row:O", axis=None, title=None),
+            url="image:N",
+            tooltip=[
+                alt.Tooltip("breed:N", title="Raza real"),
+                alt.Tooltip("filename:N", title="Archivo"),
+            ],
+        )
+        .properties(
+            width=columns * 180,
+            height=rows * 180,
+            title=f"Razas fáciles de confundir: {', '.join(available)}",
+        )
+    )
+    display(chart)
 
 
 show_breed_comparison(image_meta, DATASET_DIR)
