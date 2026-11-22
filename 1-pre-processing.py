@@ -180,7 +180,9 @@ def scan_dataset(dataset_dir: Path) -> pl.DataFrame:
     )
 
 
-inventory = scan_dataset(DATASET_DIR)
+inventory = scan_dataset(DATASET_DIR).with_columns(
+    pl.col("breed").str.replace_all(r"\s+", " ").str.strip_chars()
+)
 print(f"Imágenes encontradas: {inventory.height}")
 mostrar(inventory.head(5))
 
