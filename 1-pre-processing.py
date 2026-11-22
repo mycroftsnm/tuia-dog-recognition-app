@@ -884,7 +884,7 @@ def show_rejected_examples(
             examples = rule_examples.filter(pl.col("split") == split).head(n)
 
             # Los duplicados se muestran de a pares: descartada vs. la copia conservada.
-            if rule.startswith("R4:"):
+            if rule.startswith(("R4:", "R5:")):
                 fig, axes = plt.subplots(
                     examples.height, 2, figsize=(8, 4 * examples.height), squeeze=False
                 )
