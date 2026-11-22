@@ -500,13 +500,17 @@ def show_breed_comparison(
 show_breed_comparison(image_meta, DATASET_DIR)
 
 # %% [markdown]
+# **Observaciones del EDA.**
 #
-# TODO redactar observaciones de las imagenes, a priori son todas fotos de frente, de un unico perro generalmente en exteriores
-#
+# - **Resolución uniforme:** las 9.346 imágenes son 224×224, así que en `train`/`valid`/`test` no hay
+#   nada que recortar.
+# - **Encuadre:** un perro por imagen, centrado y relativamente grande, con fondos variados
+#   (césped, interiores, fondo blanco).
+# - **Balance:** 65–198 imágenes por raza en `train` (CV 0,22). Desbalance leve: alcanza con
+#   augmentation y, si hiciera falta, `class_weight`.
 
 # %%
-# Brillo y contraste como proxy de iluminación. Unpivotamos para graficar ambas métricas
-# en un solo Altair facetado y detectar extremos de exposición.
+# Brillo y contraste como proxy de iluminación.
 if not readable.is_empty():
     photo_long = readable.unpivot(
         index=["split", "breed", "path"],
