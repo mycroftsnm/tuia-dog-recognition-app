@@ -1105,6 +1105,31 @@ if independent_preview.is_empty():
 else:
     show_pipeline_examples(independent_preview.select(["breed", "path"]), DATASET_DIR)
 
+# %% [markdown]
+# ## 3.6 Data augmentation
+#
+# El pipeline está en **`src/lib/augmentation.py`** y se aplica **solo sobre `train`**: validación,
+# test y el conjunto independiente se evalúan con el preprocesamiento determinista.
+#
+# | Transformación | Rango | Por qué |
+# |---|---|---|
+# | Flip horizontal | p = 0.5 | el perro puede mirar a cualquier lado |
+# | Affine (escala 0.9–1.1, traslación ±5 %, rotación ±15°) | p = 0.5 | encuadre y pose variables; ±15° no cambia la raza aparente |
+# | Random resized crop | 70–100 % del área | simula recortes más cerrados (los de YOLO) |
+# | Brillo / contraste | ±20 % | interiores, exteriores y exposiciones distintas |
+# | Blur (gaussiano o de movimiento) | p = 0.2 | fotos movidas o desenfocadas |
+# | Ruido gaussiano | σ = 0.02–0.08 | compresión y sensores de baja calidad |
+#
+# **Afuera:** flip vertical, rotaciones de 90° y cambios de color/hue fuertes: no ocurren en la
+# realidad y cambian la raza aparente.
+
+# %%
+# Augmentation: solo train.
+from lib.augmentation import build_train_transform
+
+transform = build_train_transform(image_size=IMAGE_SIZE, seed=SEED)
+augmented = transform(image=sample_bgr)["image"]
+print(f"una imagen aumentada: {augmented.shape} {augmented.dtype} (BGR uint8)")
 
 # %% [markdown]
 # ## 3.7 Partición de datos
@@ -1203,5 +1228,145 @@ print(
     "proporción: "
     f"{ {row['split']: round(row['imágenes'] / final.height, 3) for row in resumen_splits.iter_rows(named=True)} }"
 )
+
+# %%
+# Equilibramos train con augmentation: cada raza llega a la cantidad de la más numerosa.
+train_split = final.filter(pl.col("split") == "train")
+train_counts = train_split.group_by("breed").len().rename({"len": "images"})
+TRAIN_TARGET = int(train_counts["images"].max())
+
+AUGMENT_DIR = DATASET_DIR / "augmented" / "train"
+if AUGMENT_DIR.exists():
+    shutil.rmtree(AUGMENT_DIR)
+
+AUGMENTED_SCHEMA = {
+    "split": pl.String,
+    "breed": pl.String,
+    "path": pl.String,
+    "filename": pl.String,
+    "origin": pl.String,
+}
+
+
+def augment_to_balance(
+    train: pl.DataFrame,
+    target: int,
+    transform: A.Compose,
+    dataset_dir: Path,
+    output_dir: Path,
+) -> pl.DataFrame:
+    """Genera copias augmentadas por clase hasta llegar a `target` imágenes por raza.
+
+    Recorre las imágenes de cada clase en round-robin, así las copias se reparten entre todas.
+    Las clases que ya tienen `target` no se tocan. El nombre de archivo usa un contador global
+    (`00001_aug.jpg`); el mapeo a la imagen original queda en la columna `origin`.
+    """
+    records = []
+    counter = 0
+    for breed in sorted(train["breed"].unique().to_list()):
+        breed_rows = train.filter(pl.col("breed") == breed).sort("path").to_dicts()
+        needed = target - len(breed_rows)
+        if needed <= 0:
+            continue
+        for index in range(needed):
+            source = breed_rows[index % len(breed_rows)]
+            image = cv2.imread(str(dataset_dir / source["path"]))
+            if image is None:
+                continue
+            augmented = transform(image=image)["image"]
+            dest_dir = output_dir / breed
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            counter += 1
+            dest = dest_dir / f"{counter:05d}_aug.jpg"
+            cv2.imwrite(str(dest), augmented, [cv2.IMWRITE_JPEG_QUALITY, 92])
+            records.append(
+                {
+                    "split": "train",
+                    "breed": breed,
+                    "path": dest.relative_to(dataset_dir).as_posix(),
+                    "filename": dest.name,
+                    "origin": source["path"],
+                }
+            )
+    return pl.from_dicts(records, schema=AUGMENTED_SCHEMA)
+
+
+print(
+    f"train: {train_split.height} imágenes | target por raza: {TRAIN_TARGET} | "
+    f"razas a aumentar: {train_counts.filter(pl.col('images') < TRAIN_TARGET).height}"
+)
+
+train_augmented = augment_to_balance(
+    train_split, TRAIN_TARGET, transform, DATASET_DIR, AUGMENT_DIR
+)
+
+columns = ["split", "breed", "path", "filename", "origin"]
+train_for_training = pl.concat(
+    [
+        train_split.with_columns(pl.lit("original").alias("origin")).select(columns),
+        train_augmented.select(columns),
+    ]
+).sort(["breed", "path"])
+train_for_training.write_csv(SPLITS_DIR / "train_augmented.csv")
+
+balance = train_for_training.group_by("breed").len()
+print(f"aumentadas: {train_augmented.height} imágenes")
+print(f"train_augmented.csv: {train_for_training.height} filas")
+print(f"por raza después: {balance['len'].min()}–{balance['len'].max()} (target {TRAIN_TARGET})")
+assert train_augmented["path"].n_unique() == train_augmented.height, "rutas aumentadas repetidas"
+assert train_for_training["path"].n_unique() == train_for_training.height, "rutas repetidas"
+
+# %%
+# Distribución por clase antes y después: el augmentation empareja todas las razas.
+before = train_split.group_by("breed").len().rename({"len": "antes"})
+after = train_for_training.group_by("breed").len().rename({"len": "después"})
+counts = (
+    before.join(after, on="breed")
+    .unpivot(index="breed", variable_name="momento", value_name="imágenes")
+)
+
+balance_chart = (
+    alt.Chart(inline(counts))
+    .mark_bar()
+    .encode(
+        x=alt.X("breed:N", title=None, axis=alt.Axis(labelAngle=-90, labelFontSize=7)),
+        xOffset="momento:N",
+        y=alt.Y("imágenes:Q", title="Imágenes en train"),
+        color=alt.Color(
+            "momento:N",
+            title=None,
+            scale=alt.Scale(range=[COLORS["gray"], COLORS["primary"]]),
+        ),
+        tooltip=["breed:N", "momento:N", "imágenes:Q"],
+    )
+    .properties(width=1100, height=320, title="Train por clase: antes y después de equilibrar")
+)
+display(balance_chart)
+
+# %%
+# Las copias generadas vienen de imágenes distintas (no son N versiones de la misma foto).
+sample_aug = train_augmented.sample(n=8, seed=SEED)
+figure, axes = plt.subplots(2, 4, figsize=(15, 7.5), squeeze=False)
+for ax, row in zip(axes.flat, sample_aug.iter_rows(named=True)):
+    with Image.open(DATASET_DIR / row["path"]) as image:
+        ax.imshow(image.convert("RGB"))
+    ax.set_title(f"{row['breed']}\ndesde {Path(row['origin']).name}", fontsize=8)
+    ax.axis("off")
+figure.suptitle("Copias generadas para equilibrar (orígenes distintos)", fontsize=12)
+plt.tight_layout()
+plt.show()
+
+size_mb = sum(path.stat().st_size for path in AUGMENT_DIR.rglob("*.jpg")) / 1e6
+print(f"{AUGMENT_DIR.relative_to(ROOT)} → {size_mb:.0f} MB")
+
+# %%
+# Verificación de fuga: cada imagen una sola vez y sin duplicados entre particiones.
+repetidas = final.group_by("path").len().filter(pl.col("len") > 1)
+print(f"Rutas repetidas entre splits: {repetidas.height}")
+
+exact_check = mark_duplicates(final.select(["path", "split", "breed"]), DATASET_DIR)
+near_check = mark_near_duplicates(final.select(["path", "split", "breed"]), DATASET_DIR)
+print(f"Archivos idénticos entre splits: {exact_check.filter(pl.col('is_duplicate')).height}")
+print(f"Casi-duplicados entre splits: {near_check.filter(pl.col('is_near_duplicate')).height}")
 
 
