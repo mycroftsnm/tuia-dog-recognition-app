@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.6
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: .venv
 #     language: python
@@ -27,7 +27,12 @@ import warnings
 from pathlib import Path
 
 import random
+import base64
 import hashlib
+import shutil
+import sys
+
+import albumentations as A
 import altair as alt
 import cv2
 import matplotlib.pyplot as plt
@@ -42,6 +47,12 @@ ROOT = Path.cwd()
 DATASET_DIR = ROOT / "data" / "dataset"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 SEED = 42
+SPLITS_DIR = ROOT / "splits"
+
+# `src/lib` es el código compartido con la app (pipeline de imagen y augmentation).
+SRC_DIR = ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 COLORS = {
     "primary": "#4c78a8",
@@ -1369,4 +1380,39 @@ near_check = mark_near_duplicates(final.select(["path", "split", "breed"]), DATA
 print(f"Archivos idénticos entre splits: {exact_check.filter(pl.col('is_duplicate')).height}")
 print(f"Casi-duplicados entre splits: {near_check.filter(pl.col('is_near_duplicate')).height}")
 
+# %% [markdown]
+# ## 3.8 Licencias y uso de imágenes
+#
+# - **Dataset:** *70 Dog Breeds Image Dataset* (Kaggle, `gpiosenka`). La licencia publicada es
+#   **CC0 (dominio público)**; conviene verificarla en la página actual del dataset antes de
+#   cualquier uso fuera de lo académico, porque los derechos de cada imagen individual pueden
+#   tener otra procedencia.
+# - **Conjunto independiente:** cada imagen tiene su fuente y licencia en
+#   `splits/independent_manifest.csv` (CC BY, CC BY-SA, CC0 o foto propia).
+# - **Personas identificables:** se evitan en el conjunto independiente. Si una escena de la
+#   Etapa 3 las incluye, no se publica.
+# - **Uso:** exclusivamente académico, sin fines comerciales.
+
+# %%
+# Tabla resumen final del dataset curado.
+print("Dataset final")
+mostrar(resumen_splits)
+
+print("\nDescartes por regla")
+mostrar(
+    discarded.group_by("quality_rule").len().rename({"len": "images"}).sort("quality_rule")
+)
+
+print("\nConjunto independiente")
+print(
+    f"Pendiente de recolección: {scan_independent(INDEPENDENT_DIR).height} imágenes encontradas "
+    f"(meta ≥ 100, ≥ 20 razas)"
+)
+
+print(f"\nTotal dataset curado: {final.height} imágenes originales de {final['breed'].n_unique()} razas")
+print(
+    f"Train para entrenar (originales + aumentadas): {train_for_training.height} imágenes "
+    f"({train_split.height} originales + {train_augmented.height} aumentadas)"
+)
+print("Galería de la Etapa 1: train_augmented.csv (originales + aumentadas).")
 
