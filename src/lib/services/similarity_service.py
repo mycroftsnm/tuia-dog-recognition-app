@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import defaultdict
 from pathlib import Path
 from typing import Callable, Optional
 from uuid import uuid4
 
 import cv2
 import numpy as np
+import torch
+from torchvision import models
 
+from lib.image_pipeline import preprocess
 from lib.schemas import EmbeddingRecord, Neighbor, SearchResult
 from lib.storage.base import EmbeddingStoreProtocol
 
@@ -48,6 +52,8 @@ class SimilarityService:
         # DATA_PATH: las rutas de la galeria se guardan relativas a esta carpeta para que
         # la base indexada desde el entorno local sirva tambien en Docker (y viceversa).
         self.data_root = data_root
+        self._model = None
+        self._device = None
 
     def _load_image(self, source_path: str) -> np.ndarray:
         image = cv2.imread(str(source_path))
@@ -61,41 +67,66 @@ class SimilarityService:
     # ------------------------------------------------------------------
 
     def extract_embedding(self, image: np.ndarray) -> list[float]:
-        """
-        Genera el embedding de una imagen usando un modelo pre-entrenado en
-        ImageNet (ej: ResNet50, EfficientNet, ConvNeXt) sin la capa de
-        clasificacion final.
+        """Embedding de una imagen con ResNet18 preentrenado (sin la capa final).
 
-        Sugerencias:
-          - Preprocesar la imagen (resize a self.image_size, normalizacion ImageNet).
-          - Usar torchvision.models o timm con pesos pre-entrenados.
-          - Recordar que la imagen llega en BGR (OpenCV).
-        Retorna una lista de floats de dimension EMBEDDING_DIM.
+        La imagen llega en BGR; se preprocesa como en el entrenamiento, se extraen las
+        features y se normalizan en L2 para poder comparar con coseno o L2.
         """
-        raise NotImplementedError("Etapa 1: implementar extract_embedding")
+        return self.extract_embeddings([image])[0]
+
+    def extract_embeddings(self, images: list[np.ndarray], batch_size: int = 32) -> list[list[float]]:
+        """Versión por lotes de `extract_embedding` (para indexar/evaluar más rápido)."""
+        if self._model is None:
+            self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self._model = models.resnet18(weights="DEFAULT")
+            self._model.fc = torch.nn.Identity()
+            self._model.eval()
+            self._model.to(self._device)
+
+        embeddings: list[list[float]] = []
+        with torch.no_grad():
+            for start in range(0, len(images), batch_size):
+                batch = np.stack(
+                    [preprocess(image, self.image_size) for image in images[start : start + batch_size]]
+                )
+                features = self._model(torch.from_numpy(batch).to(self._device))
+                array = features.cpu().numpy().astype(np.float32)
+                array = array / np.maximum(np.linalg.norm(array, axis=1, keepdims=True), 1e-12)
+                embeddings.extend(array.astype(float).tolist())
+        return embeddings
 
     def search_similar_images(self, embedding: list[float], top_k: int) -> list[Neighbor]:
-        """
-        Recupera de la base vectorial las top_k imagenes mas similares.
-
-        Sugerencias:
-          - Con pgvector: self.store.search(embedding, top_k).
-          - Con JSON: iterar self.store.all() y usar self.similarity(...).
-          - Respetar SIMILARITY_METRIC (cosine | l2).
-        Retorna una lista de Neighbor (path, breed, score) ordenada por score
-        descendente.
-        """
-        raise NotImplementedError("Etapa 1: implementar search_similar_images")
+        """Recupera las `top_k` imágenes más similares de la base, ordenadas por score."""
+        records = (
+            self.store.search(embedding, top_k)
+            if hasattr(self.store, "search")
+            else self.store.all()
+        )
+        neighbors = [
+            Neighbor(path=record.path, breed=record.breed, score=self.similarity(embedding, record.embedding))
+            for record in records
+        ]
+        neighbors.sort(key=lambda neighbor: neighbor.score, reverse=True)
+        return neighbors[:top_k]
 
     def predict_breed_from_neighbors(self, results: list[Neighbor]) -> tuple[str, float]:
-        """
-        Predice la raza a partir de los vecinos recuperados (ej: voto
-        mayoritario, opcionalmente ponderado por score).
+        """Voto por raza ponderado por score.
 
-        Si el mejor score esta por debajo de self.similarity_threshold se
-        considera "unknown". Retorna (raza, score).
+        El score devuelto es la similitud media de los vecinos de la raza ganadora. Si el
+        mejor vecino queda por debajo de `similarity_threshold`, devuelve `"unknown"`.
         """
-        raise NotImplementedError("Etapa 1: implementar predict_breed_from_neighbors")
+        if not results:
+            return ("unknown", 0.0)
+
+        best_score = max(neighbor.score for neighbor in results)
+        if best_score < self.similarity_threshold:
+            return ("unknown", float(best_score))
+
+        votes: dict[str, list[float]] = defaultdict(list)
+        for neighbor in results:
+            votes[neighbor.breed].append(neighbor.score)
+        winner = max(votes, key=lambda breed: sum(votes[breed]))
+        return (winner, float(np.mean(votes[winner])))
 
     # ------------------------------------------------------------------
     # Helpers de similitud provistos
