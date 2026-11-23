@@ -600,3 +600,96 @@ if pairs:
     mostrar(pl.DataFrame(pairs).sort("n", descending=True).head(15))
 mostrar(pl.DataFrame(evaluation_a["per_class"]).sort("accuracy").head(10))
 
+# %% [markdown]
+# ## 7. Modelo B (obligatorio): CNN propia
+#
+# `train_classifier` con el modelo activo `cnn_custom` guarda el checkpoint en
+# `models/cnn_custom.pth`. La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
+#
+# | Decisión | Elección | Por qué |
+# |---|---|---|
+# | Bloques | 4 × (Conv-BN-ReLU ×2 + MaxPool), canales 32→64→128→256 | capacidad suficiente para 70 clases sin dispararse en parámetros |
+# | BatchNorm | en cada convolución | estabiliza el entrenamiento desde cero con lotes chicos |
+# | Global Average Pooling | en vez de `flatten` | menos parámetros y menos overfitting |
+# | Embedding | `Linear(256→256)` + ReLU | permite usar el modelo en la búsqueda de la Etapa 1 |
+# | Dropout | 0.3 antes del clasificador | es el modelo con más riesgo de overfit |
+# | Entrenamiento | desde cero, fine-tuning completo | es el objetivo del Modelo B |
+
+# %%
+classifier.set_active_model("cnn_custom")
+classifier.train_classifier()
+
+# %%
+metrics_b = classifier.evaluate_classifier()
+evaluation_b = classifier.last_evaluation
+(settings.output_path / "eval_cnn_custom.json").write_text(
+    json.dumps(evaluation_b, ensure_ascii=False, indent=2), encoding="utf-8"
+)
+mostrar(
+    pl.DataFrame(
+        [{"métrica": key, "valor": round(float(value), 4)} for key, value in metrics_b.items()]
+    )
+)
+
+# %% [markdown]
+# ### Curvas de entrenamiento y matriz de confusión (Modelo B)
+#
+# Las mismas figuras que el Modelo A, leyendo `output/history_cnn_custom.json` y
+# `output/eval_cnn_custom.json`.
+
+# %%
+## TO-DO: curvas de entrenamiento y matriz de confusión del Modelo B.
+
+# %% [markdown]
+# ## 8. Evaluación sobre el conjunto independiente
+#
+# Cuando esté recolectado: las mismas métricas sobre `splits/independent_manifest.csv` y discusión
+# del cambio de dominio.
+
+# %%
+## TO-DO: métricas de ambos modelos sobre el conjunto independiente.
+
+# %% [markdown]
+# ## 9. Embeddings de los modelos entrenados
+#
+# NDCG@10 con los embeddings del baseline, del Modelo A y del Modelo B
+# (`classifier.extract_custom_embedding`), con la misma galería y consultas, y visualización
+# PCA/t-SNE de los embeddings de test.
+
+# %%
+## TO-DO: NDCG@10 por modelo de embeddings y visualización PCA / t-SNE.
+
+# %% [markdown]
+# ## 10. Análisis de errores
+#
+# Falsos positivos y falsos negativos con la imagen y su score, razas con peor desempeño e
+# hipótesis sobre las causas.
+
+# %%
+## TO-DO: análisis de errores con ejemplos visuales.
+
+# %% [markdown]
+# ## 11. Costo computacional
+#
+# Parámetros, tamaño en MB, tiempo de inferencia por imagen en CPU y dimensión del embedding.
+
+# %%
+## TO-DO: costo computacional de cada modelo.
+
+# %% [markdown]
+# ## 12. Comparación y elección final
+#
+# Tabla comparativa (Modelo A, Modelo B y baseline), qué modelo clasifica y qué embeddings usa la
+# búsqueda (`EMBEDDING_MODEL`), y comparación entre búsqueda por similitud y clasificación.
+
+# %%
+## TO-DO: tabla comparativa final.
+
+# %% [markdown]
+# ## 13. Checkpoints
+#
+# Los checkpoints quedan en `models/` (no se versionan). Hay que subirlos a un link público de
+# solo lectura y ponerlo en el README y en el PR.
+
+# %%
+sorted(path.name for path in settings.model_path.glob("*.pth"))
