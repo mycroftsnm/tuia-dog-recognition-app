@@ -448,3 +448,155 @@ if len(correct):
     show_retrieval_example(int(correct[0]))
 if len(wrong):
     show_retrieval_example(int(wrong[0]))
+
+
+# %% [markdown]
+# ## 6. Modelo A (obligatorio): fine-tuning de ResNet
+#
+# ResNet18 preentrenada en ImageNet, con una cabeza lineal nueva para las 70 razas.
+#
+# | Decisión | Elección | Por qué |
+# |---|---|---|
+# | Backbone | ResNet18 (11 M parámetros) | mejor costo/precisión en CPU; su embedding de 512-D coincide con `EMBEDDING_DIM` |
+# | Pesos | ImageNet | 10.570 imágenes son pocas para entrenar de cero |
+# | Entrada | 224×224, normalización ImageNet | tamaño nativo del dataset y de los pesos |
+# | Cabeza | Dropout 0.2 + `Linear(512, 70)` | única capa nueva; el dropout la regulariza |
+# | Estrategia | fine-tuning completo, lr 3e-4 | las razas necesitan ajustar texturas, no solo la cabeza |
+# | Optimizador | AdamW + cosine, weight decay 1e-4 | estable, sin tuning fino |
+# | Regularización | label smoothing 0.1 | razas parecidas y ruido de etiquetas |
+# | Selección | mejor F1 macro en valid, `patience=3` | clases balanceadas: F1 macro pesa igual cada raza |
+#
+# Los hiperparámetros se configuran por `.env` (`TRAIN_EPOCHS`, `TRAIN_BATCH_SIZE`, `TRAIN_LR`,
+# `TRAIN_PATIENCE`, `TRAIN_STRATEGY`). `TRAIN_STRATEGY=feature_extraction` congela el backbone y
+# entrena solo la cabeza: sirve como comparación de estrategias.
+#
+# `train_classifier()` entrena con `train_augmented`, elige el mejor checkpoint por F1 en
+# validación (early stopping) y guarda el historial en `output/history_resnet18_finetuned.json`.
+
+# %%
+classifier = build_classifier(settings)
+classifier.set_active_model("resnet18_finetuned")
+classifier.train_classifier()
+
+# %%
+history_path = settings.output_path / "history_resnet18_finetuned.json"
+history = pl.DataFrame(json.loads(history_path.read_text(encoding="utf-8"))["epochs"])
+mostrar(history)
+
+# %%
+metrics_a = classifier.evaluate_classifier()
+evaluation_a = classifier.last_evaluation
+(settings.output_path / "eval_resnet18_finetuned.json").write_text(
+    json.dumps(evaluation_a, ensure_ascii=False, indent=2), encoding="utf-8"
+)
+mostrar(
+    pl.DataFrame(
+        [{"métrica": key, "valor": round(float(value), 4)} for key, value in metrics_a.items()]
+    )
+)
+
+# %% [markdown]
+# ### Curvas de entrenamiento y matriz de confusión (Modelo A)
+#
+# **Lectura:** si train sigue mejorando y valid se estanca, es overfitting (más augmentation o
+# regularización); si las dos mesetan juntas, faltan épocas o capacidad. El checkpoint guardado es
+# el de mejor F1 en validación, no el de la última época.
+
+# %%
+def plot_training(history: pl.DataFrame, model: str) -> None:
+    """Curvas de loss y accuracy. Train siempre azul, validación siempre naranja."""
+    color = alt.Color(
+        "split:N",
+        title=None,
+        scale=alt.Scale(
+            domain=["train", "valid"],
+            range=[COLORS["primary"], COLORS["secondary"]],
+        ),
+    )
+
+    def long_frame(columns: list[str], value_name: str) -> pl.DataFrame:
+        return (
+            history.select(["epoch", *columns])
+            .unpivot(index="epoch", variable_name="serie", value_name=value_name)
+            .with_columns(
+                pl.when(pl.col("serie").str.starts_with("train"))
+                .then(pl.lit("train"))
+                .otherwise(pl.lit("valid"))
+                .alias("split")
+            )
+        )
+
+    loss_chart = (
+        alt.Chart(inline(long_frame(["train_loss", "valid_loss"], "loss")))
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("epoch:Q", title="Época"),
+            y=alt.Y("loss:Q", title="Loss"),
+            color=color,
+            tooltip=["epoch:Q", "split:N", alt.Tooltip("loss:Q", format=".4f")],
+        )
+        .properties(width=520, height=300, title=f"{model} — loss: train vs validación")
+    )
+
+    accuracy_chart = (
+        alt.Chart(inline(long_frame(["train_accuracy", "valid_accuracy"], "accuracy")))
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("epoch:Q", title="Época"),
+            y=alt.Y("accuracy:Q", title="Accuracy", axis=alt.Axis(format="%")),
+            color=color,
+            tooltip=["epoch:Q", "split:N", alt.Tooltip("accuracy:Q", format=".3f")],
+        )
+        .properties(width=520, height=300, title=f"{model} — accuracy: train vs validación")
+    )
+    display(loss_chart | accuracy_chart)
+
+
+plot_training(history, "Modelo A")
+
+# %%
+labels = evaluation_a["class_names"]
+matrix = np.asarray(evaluation_a["confusion_matrix"], dtype=float)
+normalized = matrix / np.maximum(matrix.sum(axis=1, keepdims=True), 1)
+confusion_long = pl.DataFrame(
+    {
+        "real": np.repeat(labels, len(labels)),
+        "predicha": np.tile(labels, len(labels)),
+        "n": matrix.reshape(-1).astype(int),
+        "proporción": np.round(normalized.reshape(-1), 4),
+    }
+).filter(pl.col("n") > 0)
+
+confusion_chart = (
+    alt.Chart(inline(confusion_long))
+    .mark_rect()
+    .encode(
+        x=alt.X("predicha:N", sort=labels, title=None, axis=alt.Axis(labelAngle=-90, labelFontSize=6)),
+        y=alt.Y("real:N", sort=labels, title=None, axis=alt.Axis(labelFontSize=6)),
+        color=alt.Color(
+            "proporción:Q",
+            title="Proporción",
+            scale=alt.Scale(range=["#ffffff", COLORS["primary"]]),
+        ),
+        tooltip=[
+            alt.Tooltip("real:N", title="Real"),
+            alt.Tooltip("predicha:N", title="Predicha"),
+            alt.Tooltip("n:Q", title="Imágenes"),
+            alt.Tooltip("proporción:Q", format=".1%"),
+        ],
+    )
+    .properties(width=760, height=680, title="Matriz de confusión normalizada (Modelo A)")
+)
+display(confusion_chart)
+
+# %%
+off_diagonal = matrix.copy()
+np.fill_diagonal(off_diagonal, 0)
+pairs = [
+    {"real": labels[row], "predicha": labels[column], "n": int(off_diagonal[row, column])}
+    for row, column in zip(*np.nonzero(off_diagonal))
+]
+if pairs:
+    mostrar(pl.DataFrame(pairs).sort("n", descending=True).head(15))
+mostrar(pl.DataFrame(evaluation_a["per_class"]).sort("accuracy").head(10))
+
