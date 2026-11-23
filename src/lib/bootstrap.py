@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable, Optional, Union
 
 from lib.config import Settings
-from lib.services.classifier_service import ClassifierService
+from lib.services.classifier_service import ClassifierService, TrainingConfig
 from lib.services.detection_service import DetectionService
 from lib.services.similarity_service import SimilarityService
 from lib.storage.base import EmbeddingStoreProtocol
@@ -55,6 +55,16 @@ def build_classifier(settings: Settings) -> ClassifierService:
         image_size=settings.image_size,
         dataset_path=settings.dataset_path,
         output_path=settings.output_path,
+        splits_path=settings.splits_path,
+        embedding_dim=settings.embedding_dim,
+        training=TrainingConfig(
+            epochs=settings.train_epochs,
+            batch_size=settings.train_batch_size,
+            learning_rate=settings.train_learning_rate,
+            patience=settings.train_patience,
+            strategy=settings.train_strategy,
+        ),
+        num_workers=settings.max_workers,
     )
 
 
