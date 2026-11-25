@@ -959,6 +959,9 @@ show_rejected_examples(quality, DATASET_DIR)
 # misma raza comparten una sola fila con `multiple_dogs=true`. En una foto sin perros,
 # `breed` queda vacío y ambas marcas son falsas. La tabla por raza cuenta las fotos que
 # contienen esa raza, de modo que una escena mixta aparece en más de una categoría.
+# `scene_type` distingue un perro, varios perros, gatos y otras escenas sin perros.
+# `notes` permite registrar condiciones que podrían dificultar la clasificación, como
+# la edad de un cachorro. Es una hipótesis para revisar al analizar los resultados.
 
 # %%
 # Creamos la carpeta del conjunto independiente y definimos el manifiesto con fuente/licencia.
