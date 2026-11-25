@@ -955,7 +955,10 @@ show_rejected_examples(quality, DATASET_DIR)
 #
 # Las guardamos fuera del control de versiones en `data/dataset/independent/<raza>/`
 # (ya cubierto por `.gitignore`) y documentamos fuente y licencia de cada imagen en un
-# manifiesto CSV.
+# manifiesto CSV. Cada foto tiene una ruta y una fila por raza presente. Dos perros de la
+# misma raza comparten una sola fila con `multiple_dogs=true`. En una foto sin perros,
+# `breed` queda vacío y ambas marcas son falsas. La tabla por raza cuenta las fotos que
+# contienen esa raza, de modo que una escena mixta aparece en más de una categoría.
 
 # %%
 # Creamos la carpeta del conjunto independiente y definimos el manifiesto con fuente/licencia.
@@ -979,7 +982,11 @@ INDEPENDENT_SCHEMA = {
 def load_independent_manifest(manifest_path: Path) -> pl.DataFrame:
     """Carga el manifiesto independiente si existe; si no, devuelve uno vacío."""
     if manifest_path.exists():
-        return pl.read_csv(manifest_path)
+        manifest = pl.read_csv(manifest_path, schema_overrides=INDEPENDENT_SCHEMA)
+        missing = INDEPENDENT_SCHEMA.keys() - manifest.columns
+        if missing:
+            raise ValueError(f"Faltan columnas en el manifiesto: {', '.join(sorted(missing))}")
+        return manifest.with_columns(pl.col("breed").str.strip_chars().replace("", None))
     return pl.DataFrame(schema=INDEPENDENT_SCHEMA)
 
 
@@ -991,34 +998,71 @@ def scan_independent(independent_dir: Path) -> pl.DataFrame:
             if image_path.is_file() and image_path.suffix.lower() in IMAGE_SUFFIXES:
                 records.append(
                     {
-                        "breed": image_path.parent.name,
-                        "path": image_path.relative_to(DATASET_DIR).as_posix(),
+                        "path": image_path.relative_to(independent_dir.parent).as_posix(),
                         "filename": image_path.name,
                     }
                 )
     return pl.from_dicts(
         records,
-        schema={"breed": pl.String, "path": pl.String, "filename": pl.String},
+        schema={"path": pl.String, "filename": pl.String},
     )
 
 
-independent_images = scan_independent(INDEPENDENT_DIR)
-print(f"Imágenes independientes encontradas: {independent_images.height}")
+def audit_independent_set(manifest: pl.DataFrame, images: pl.DataFrame) -> pl.DataFrame:
+    """Contrasta rutas con el disco y comprueba las etiquetas de cada foto."""
+    issues = []
+    files = set(images["path"])
+    for path in sorted(files - set(manifest["path"])):
+        issues.append((path, "Archivo sin fila en el manifiesto"))
 
+    for photo in manifest.partition_by("path", maintain_order=True):
+        path = photo["path"][0]
+        if path not in files:
+            issues.append((path, "La ruta del CSV no corresponde a una imagen en disco"))
+        elif set(photo["filename"]) != {Path(path).name}:
+            issues.append((path, "filename no coincide con el nombre en la ruta"))
+        for field in ("source", "license"):
+            if any(not (value or "").strip() for value in photo[field]):
+                issues.append((path, f"Falta completar {field}"))
+
+        breeds = photo["breed"]
+        if breeds.is_duplicated().any():
+            issues.append((path, "Etiqueta repetida para la misma foto"))
+        if photo.height > 1 and breeds.null_count():
+            issues.append((path, "Cada fila de una foto con varias etiquetas debe indicar una raza"))
+        flags = photo.select("has_dog", "multiple_dogs").unique().rows()
+        if len(flags) != 1 or None in flags[0]:
+            issues.append((path, "Las marcas de la escena faltan o difieren entre filas"))
+            continue
+        has_dog, multiple_dogs = flags[0]
+        if not has_dog and (multiple_dogs or breeds.drop_nulls().len() > 0):
+            issues.append((path, "Una foto sin perros debe tener breed vacío y multiple_dogs=false"))
+        elif not multiple_dogs and breeds.drop_nulls().n_unique() > 1:
+            issues.append((path, "Varias razas en una foto requieren multiple_dogs=true"))
+
+    return pl.DataFrame(issues, schema={"path": pl.String, "error": pl.String}, orient="row")
+
+
+independent_images = scan_independent(INDEPENDENT_DIR)
 manifest = load_independent_manifest(INDEPENDENT_MANIFEST)
-if manifest.is_empty():
-    print("Manifiesto vacío: completar breed, source y license por cada imagen descargada.")
-else:
+audit_issues = audit_independent_set(manifest, independent_images)
+print(
+    f"Fotos en disco: {independent_images.height} | Rutas en el CSV: {manifest['path'].drop_nulls().n_unique()} "
+    f"| Filas del manifiesto: {manifest.height}"
+)
+if not audit_issues.is_empty():
+    mostrar(audit_issues)
+elif not manifest.is_empty():
+    print("Auditoría del manifiesto: sin observaciones.")
     resumen_independiente = (
-        manifest.group_by("breed")
-        .len()
-        .rename({"len": "images"})
+        manifest.drop_nulls("breed").group_by("breed")
+        .agg(pl.col("path").n_unique().alias("images"))
         .sort("images", descending=True)
     )
     mostrar(resumen_independiente)
 
 # %% [markdown]
-# **TODO generar dataset independiente**
+# **Recolección del conjunto independiente**
 #  El manifiesto `splits/independent_manifest.csv` se completa a medida que el equipo descarga fotos propias o de
 # internet. Para cada imagen se registra `breed`, `path`, `source` (URL o "foto propia") y
 # `license` (por ejemplo CC BY 4.0, CC BY-SA 4.0, o "foto propia"). Las imágenes sin perro (gatos,
@@ -1045,9 +1089,8 @@ else:
 #
 # En las celdas de abajo se aplica el pipeline a 4 imágenes del dataset: el tensor desnormalizado
 # se ve **igual** que el original porque en 224×224 la geometría es no-op; lo que cambió son los
-# valores (BGR→RGB, [0,1], media/desvío) y el orden de ejes. El bloque del conjunto independiente
-# queda como **placeholder** hasta que esté recolectado: ahí el letterbox sí actúa (pueden no ser
-# 224×224) y se va a ver el padding.
+# valores (BGR→RGB, [0,1], media/desvío) y el orden de ejes. En las fotos independientes
+# rectangulares se puede observar el relleno que agrega el letterbox.
 
 # %%
 # El pipeline de imagen se importa del módulo compartido con la app.
@@ -1106,15 +1149,15 @@ kaggle_samples = accepted.sample(n=4, seed=SEED).select(["breed", "path"])
 show_pipeline_examples(kaggle_samples, DATASET_DIR)
 
 # %%
-# Placeholder: mismo control con el conjunto independiente, cuando esté recolectado.
-independent_preview = scan_independent(INDEPENDENT_DIR).head(4)
-if independent_preview.is_empty():
-    print(
-        "Pendiente: cuando exista el conjunto independiente, esta celda muestra el pipeline "
-        "sobre 4 imágenes suyas. Ahí el letterbox sí actúa (pueden no ser 224x224)."
+# Una columna por foto, con las razas del manifiesto aunque comparta carpeta con otras escenas.
+if audit_issues.is_empty() and not manifest.is_empty():
+    unlabelled = (
+        pl.when(pl.col("has_dog")).then(pl.lit("Raza sin informar")).otherwise(pl.lit("Sin perro"))
     )
-else:
-    show_pipeline_examples(independent_preview.select(["breed", "path"]), DATASET_DIR)
+    independent_preview = manifest.group_by("path", maintain_order=True).agg(
+        pl.col("breed").fill_null(unlabelled).str.join(" / ").alias("breed")
+    )
+    show_pipeline_examples(independent_preview.head(4), DATASET_DIR)
 
 # %% [markdown]
 # ## 3.6 Data augmentation
@@ -1405,7 +1448,7 @@ mostrar(
 
 print("\nConjunto independiente")
 print(
-    f"Pendiente de recolección: {scan_independent(INDEPENDENT_DIR).height} imágenes encontradas "
+    f"{independent_images.height} fotos en disco; {audit_issues.height} observaciones del manifiesto "
     f"(meta ≥ 100, ≥ 20 razas)"
 )
 
