@@ -1,0 +1,1380 @@
+split,breed,path,filename
+test,Afghan,train/Afghan/007.jpg,007.jpg
+test,Afghan,train/Afghan/012.jpg,012.jpg
+test,Afghan,train/Afghan/028.jpg,028.jpg
+test,Afghan,train/Afghan/031.jpg,031.jpg
+test,Afghan,train/Afghan/042.jpg,042.jpg
+test,Afghan,train/Afghan/048.jpg,048.jpg
+test,Afghan,train/Afghan/056.jpg,056.jpg
+test,Afghan,train/Afghan/059.jpg,059.jpg
+test,Afghan,train/Afghan/061.jpg,061.jpg
+test,Afghan,train/Afghan/064.jpg,064.jpg
+test,Afghan,train/Afghan/072.jpg,072.jpg
+test,Afghan,train/Afghan/075.jpg,075.jpg
+test,Afghan,train/Afghan/078.jpg,078.jpg
+test,Afghan,train/Afghan/083.jpg,083.jpg
+test,Afghan,train/Afghan/088.jpg,088.jpg
+test,Afghan,valid/Afghan/02.jpg,02.jpg
+test,Afghan,valid/Afghan/03.jpg,03.jpg
+test,Afghan,valid/Afghan/07.jpg,07.jpg
+test,African Wild Dog,test/African Wild Dog/07.jpg,07.jpg
+test,African Wild Dog,test/African Wild Dog/09.jpg,09.jpg
+test,African Wild Dog,test/African Wild Dog/10.jpg,10.jpg
+test,African Wild Dog,train/African Wild Dog/003.jpg,003.jpg
+test,African Wild Dog,train/African Wild Dog/004.jpg,004.jpg
+test,African Wild Dog,train/African Wild Dog/010.jpg,010.jpg
+test,African Wild Dog,train/African Wild Dog/016.jpg,016.jpg
+test,African Wild Dog,train/African Wild Dog/019.jpg,019.jpg
+test,African Wild Dog,train/African Wild Dog/025.jpg,025.jpg
+test,African Wild Dog,train/African Wild Dog/037.jpg,037.jpg
+test,African Wild Dog,train/African Wild Dog/060.jpg,060.jpg
+test,African Wild Dog,train/African Wild Dog/066.jpg,066.jpg
+test,African Wild Dog,train/African Wild Dog/072.jpg,072.jpg
+test,African Wild Dog,train/African Wild Dog/077.jpg,077.jpg
+test,African Wild Dog,train/African Wild Dog/079.jpg,079.jpg
+test,African Wild Dog,train/African Wild Dog/083.jpg,083.jpg
+test,African Wild Dog,train/African Wild Dog/091.jpg,091.jpg
+test,African Wild Dog,train/African Wild Dog/095.jpg,095.jpg
+test,African Wild Dog,valid/African Wild Dog/02.jpg,02.jpg
+test,Airedale,test/Airedale/10.jpg,10.jpg
+test,Airedale,train/Airedale/004.jpg,004.jpg
+test,Airedale,train/Airedale/027.jpg,027.jpg
+test,Airedale,train/Airedale/050.jpg,050.jpg
+test,Airedale,train/Airedale/056.jpg,056.jpg
+test,Airedale,train/Airedale/064.jpg,064.jpg
+test,Airedale,train/Airedale/065.jpg,065.jpg
+test,Airedale,train/Airedale/067.jpg,067.jpg
+test,Airedale,train/Airedale/086.jpg,086.jpg
+test,Airedale,train/Airedale/087.jpg,087.jpg
+test,Airedale,train/Airedale/090.jpg,090.jpg
+test,Airedale,train/Airedale/093.jpg,093.jpg
+test,Airedale,train/Airedale/097.jpg,097.jpg
+test,Airedale,train/Airedale/098.jpg,098.jpg
+test,Airedale,train/Airedale/105.jpg,105.jpg
+test,Airedale,train/Airedale/108.jpg,108.jpg
+test,Airedale,valid/Airedale/06.jpg,06.jpg
+test,Airedale,valid/Airedale/07.jpg,07.jpg
+test,Airedale,valid/Airedale/09.jpg,09.jpg
+test,Airedale,valid/Airedale/10.jpg,10.jpg
+test,American Hairless,test/American Hairless/04.jpg,04.jpg
+test,American Hairless,test/American Hairless/07.jpg,07.jpg
+test,American Hairless,train/American Hairless/02.jpg,02.jpg
+test,American Hairless,train/American Hairless/10.jpg,10.jpg
+test,American Hairless,train/American Hairless/11.jpg,11.jpg
+test,American Hairless,train/American Hairless/15.jpg,15.jpg
+test,American Hairless,train/American Hairless/18.jpg,18.jpg
+test,American Hairless,train/American Hairless/22.jpg,22.jpg
+test,American Hairless,train/American Hairless/40.jpg,40.jpg
+test,American Hairless,train/American Hairless/50.jpg,50.jpg
+test,American Hairless,train/American Hairless/54.jpg,54.jpg
+test,American Hairless,train/American Hairless/55.jpg,55.jpg
+test,American Hairless,valid/American Hairless/04.jpg,04.jpg
+test,American Spaniel,test/American Spaniel/02.jpg,02.jpg
+test,American Spaniel,test/American Spaniel/06.jpg,06.jpg
+test,American Spaniel,train/American Spaniel/04.jpg,04.jpg
+test,American Spaniel,train/American Spaniel/05.jpg,05.jpg
+test,American Spaniel,train/American Spaniel/08.jpg,08.jpg
+test,American Spaniel,train/American Spaniel/19.jpg,19.jpg
+test,American Spaniel,train/American Spaniel/33.jpg,33.jpg
+test,American Spaniel,train/American Spaniel/35.jpg,35.jpg
+test,American Spaniel,train/American Spaniel/50.jpg,50.jpg
+test,American Spaniel,train/American Spaniel/69.jpg,69.jpg
+test,American Spaniel,train/American Spaniel/82.jpg,82.jpg
+test,American Spaniel,train/American Spaniel/83.jpg,83.jpg
+test,American Spaniel,train/American Spaniel/87.jpg,87.jpg
+test,American Spaniel,valid/American  Spaniel/02.jpg,02.jpg
+test,American Spaniel,valid/American  Spaniel/03.jpg,03.jpg
+test,American Spaniel,valid/American  Spaniel/09.jpg,09.jpg
+test,Basenji,test/Basenji/09.jpg,09.jpg
+test,Basenji,train/Basenji/26.jpg,26.jpg
+test,Basenji,train/Basenji/39.jpg,39.jpg
+test,Basenji,train/Basenji/50.jpg,50.jpg
+test,Basenji,train/Basenji/57.jpg,57.jpg
+test,Basenji,train/Basenji/61.jpg,61.jpg
+test,Basenji,train/Basenji/64.jpg,64.jpg
+test,Basenji,train/Basenji/65.jpg,65.jpg
+test,Basenji,train/Basenji/77.jpg,77.jpg
+test,Basenji,train/Basenji/81.jpg,81.jpg
+test,Basenji,train/Basenji/82.jpg,82.jpg
+test,Basenji,train/Basenji/85.jpg,85.jpg
+test,Basenji,train/Basenji/86.jpg,86.jpg
+test,Basenji,train/Basenji/87.jpg,87.jpg
+test,Basenji,train/Basenji/92.jpg,92.jpg
+test,Basenji,train/Basenji/97.jpg,97.jpg
+test,Basenji,train/Basenji/99.jpg,99.jpg
+test,Basenji,valid/Basenji/08.jpg,08.jpg
+test,Basset,test/Basset/08.jpg,08.jpg
+test,Basset,train/Basset/015.jpg,015.jpg
+test,Basset,train/Basset/021.jpg,021.jpg
+test,Basset,train/Basset/022.jpg,022.jpg
+test,Basset,train/Basset/025.jpg,025.jpg
+test,Basset,train/Basset/026.jpg,026.jpg
+test,Basset,train/Basset/031.jpg,031.jpg
+test,Basset,train/Basset/044.jpg,044.jpg
+test,Basset,train/Basset/045.jpg,045.jpg
+test,Basset,train/Basset/049.jpg,049.jpg
+test,Basset,train/Basset/056.jpg,056.jpg
+test,Basset,train/Basset/062.jpg,062.jpg
+test,Basset,train/Basset/063.jpg,063.jpg
+test,Basset,train/Basset/065.jpg,065.jpg
+test,Basset,train/Basset/068.jpg,068.jpg
+test,Basset,train/Basset/069.jpg,069.jpg
+test,Basset,train/Basset/084.jpg,084.jpg
+test,Basset,train/Basset/103.jpg,103.jpg
+test,Basset,train/Basset/109.jpg,109.jpg
+test,Basset,train/Basset/111.jpg,111.jpg
+test,Basset,train/Basset/113.jpg,113.jpg
+test,Basset,train/Basset/115.jpg,115.jpg
+test,Basset,train/Basset/121.jpg,121.jpg
+test,Basset,train/Basset/128.jpg,128.jpg
+test,Basset,train/Basset/136.jpg,136.jpg
+test,Basset,train/Basset/142.jpg,142.jpg
+test,Basset,train/Basset/150.jpg,150.jpg
+test,Beagle,test/Beagle/01.jpg,01.jpg
+test,Beagle,test/Beagle/03.jpg,03.jpg
+test,Beagle,train/Beagle/002.jpg,002.jpg
+test,Beagle,train/Beagle/005.jpg,005.jpg
+test,Beagle,train/Beagle/008.jpg,008.jpg
+test,Beagle,train/Beagle/014.jpg,014.jpg
+test,Beagle,train/Beagle/030.jpg,030.jpg
+test,Beagle,train/Beagle/033.jpg,033.jpg
+test,Beagle,train/Beagle/043.jpg,043.jpg
+test,Beagle,train/Beagle/045.jpg,045.jpg
+test,Beagle,train/Beagle/048.jpg,048.jpg
+test,Beagle,train/Beagle/057.jpg,057.jpg
+test,Beagle,train/Beagle/060.jpg,060.jpg
+test,Beagle,train/Beagle/076.jpg,076.jpg
+test,Beagle,train/Beagle/090.jpg,090.jpg
+test,Beagle,train/Beagle/099.jpg,099.jpg
+test,Beagle,train/Beagle/111.jpg,111.jpg
+test,Beagle,train/Beagle/112.jpg,112.jpg
+test,Beagle,train/Beagle/114.jpg,114.jpg
+test,Beagle,train/Beagle/122.jpg,122.jpg
+test,Beagle,valid/Beagle/10.jpg,10.jpg
+test,Bearded Collie,train/Bearded Collie/03.jpg,03.jpg
+test,Bearded Collie,train/Bearded Collie/07.jpg,07.jpg
+test,Bearded Collie,train/Bearded Collie/10.jpg,10.jpg
+test,Bearded Collie,train/Bearded Collie/26.jpg,26.jpg
+test,Bearded Collie,train/Bearded Collie/34.jpg,34.jpg
+test,Bearded Collie,train/Bearded Collie/36.jpg,36.jpg
+test,Bearded Collie,train/Bearded Collie/40.jpg,40.jpg
+test,Bearded Collie,train/Bearded Collie/59.jpg,59.jpg
+test,Bearded Collie,train/Bearded Collie/69.jpg,69.jpg
+test,Bearded Collie,train/Bearded Collie/73.jpg,73.jpg
+test,Bearded Collie,train/Bearded Collie/75.jpg,75.jpg
+test,Bearded Collie,train/Bearded Collie/77.jpg,77.jpg
+test,Bearded Collie,train/Bearded Collie/79.jpg,79.jpg
+test,Bearded Collie,valid/Bearded Collie/02.jpg,02.jpg
+test,Bearded Collie,valid/Bearded Collie/10.jpg,10.jpg
+test,Bermaise,test/Bermaise/08.jpg,08.jpg
+test,Bermaise,train/Bermaise/007.jpg,007.jpg
+test,Bermaise,train/Bermaise/011.jpg,011.jpg
+test,Bermaise,train/Bermaise/019.jpg,019.jpg
+test,Bermaise,train/Bermaise/025.jpg,025.jpg
+test,Bermaise,train/Bermaise/045.jpg,045.jpg
+test,Bermaise,train/Bermaise/051.jpg,051.jpg
+test,Bermaise,train/Bermaise/055.jpg,055.jpg
+test,Bermaise,train/Bermaise/058.jpg,058.jpg
+test,Bermaise,train/Bermaise/061.jpg,061.jpg
+test,Bermaise,train/Bermaise/067.jpg,067.jpg
+test,Bermaise,train/Bermaise/069.jpg,069.jpg
+test,Bermaise,train/Bermaise/075.jpg,075.jpg
+test,Bermaise,train/Bermaise/084.jpg,084.jpg
+test,Bermaise,train/Bermaise/085.jpg,085.jpg
+test,Bermaise,train/Bermaise/094.jpg,094.jpg
+test,Bermaise,train/Bermaise/096.jpg,096.jpg
+test,Bermaise,train/Bermaise/097.jpg,097.jpg
+test,Bermaise,train/Bermaise/099.jpg,099.jpg
+test,Bermaise,train/Bermaise/110.jpg,110.jpg
+test,Bermaise,train/Bermaise/114.jpg,114.jpg
+test,Bermaise,train/Bermaise/130.jpg,130.jpg
+test,Bermaise,valid/Bermaise/06.jpg,06.jpg
+test,Bichon Frise,test/Bichon Frise/10.jpg,10.jpg
+test,Bichon Frise,train/Bichon Frise/002.jpg,002.jpg
+test,Bichon Frise,train/Bichon Frise/003.jpg,003.jpg
+test,Bichon Frise,train/Bichon Frise/013.jpg,013.jpg
+test,Bichon Frise,train/Bichon Frise/016.jpg,016.jpg
+test,Bichon Frise,train/Bichon Frise/030.jpg,030.jpg
+test,Bichon Frise,train/Bichon Frise/037.jpg,037.jpg
+test,Bichon Frise,train/Bichon Frise/041.jpg,041.jpg
+test,Bichon Frise,train/Bichon Frise/047.jpg,047.jpg
+test,Bichon Frise,train/Bichon Frise/048.jpg,048.jpg
+test,Bichon Frise,train/Bichon Frise/052.jpg,052.jpg
+test,Bichon Frise,train/Bichon Frise/053.jpg,053.jpg
+test,Bichon Frise,train/Bichon Frise/067.jpg,067.jpg
+test,Bichon Frise,train/Bichon Frise/081.jpg,081.jpg
+test,Bichon Frise,train/Bichon Frise/084.jpg,084.jpg
+test,Bichon Frise,train/Bichon Frise/092.jpg,092.jpg
+test,Bichon Frise,train/Bichon Frise/098.jpg,098.jpg
+test,Bichon Frise,valid/Bichon Frise/04.jpg,04.jpg
+test,Blenheim,test/Blenheim/06.jpg,06.jpg
+test,Blenheim,train/Blenheim/002.jpg,002.jpg
+test,Blenheim,train/Blenheim/005.jpg,005.jpg
+test,Blenheim,train/Blenheim/009.jpg,009.jpg
+test,Blenheim,train/Blenheim/012.jpg,012.jpg
+test,Blenheim,train/Blenheim/015.jpg,015.jpg
+test,Blenheim,train/Blenheim/031.jpg,031.jpg
+test,Blenheim,train/Blenheim/036.jpg,036.jpg
+test,Blenheim,train/Blenheim/041.jpg,041.jpg
+test,Blenheim,train/Blenheim/043.jpg,043.jpg
+test,Blenheim,train/Blenheim/044.jpg,044.jpg
+test,Blenheim,train/Blenheim/054.jpg,054.jpg
+test,Blenheim,train/Blenheim/056.jpg,056.jpg
+test,Blenheim,train/Blenheim/060.jpg,060.jpg
+test,Blenheim,train/Blenheim/063.jpg,063.jpg
+test,Blenheim,train/Blenheim/073.jpg,073.jpg
+test,Blenheim,train/Blenheim/076.jpg,076.jpg
+test,Blenheim,train/Blenheim/080.jpg,080.jpg
+test,Blenheim,train/Blenheim/100.jpg,100.jpg
+test,Blenheim,train/Blenheim/112.jpg,112.jpg
+test,Bloodhound,test/Bloodhound/03.jpg,03.jpg
+test,Bloodhound,train/Bloodhound/002.jpg,002.jpg
+test,Bloodhound,train/Bloodhound/003.jpg,003.jpg
+test,Bloodhound,train/Bloodhound/010.jpg,010.jpg
+test,Bloodhound,train/Bloodhound/012.jpg,012.jpg
+test,Bloodhound,train/Bloodhound/024.jpg,024.jpg
+test,Bloodhound,train/Bloodhound/045.jpg,045.jpg
+test,Bloodhound,train/Bloodhound/046.jpg,046.jpg
+test,Bloodhound,train/Bloodhound/052.jpg,052.jpg
+test,Bloodhound,train/Bloodhound/054.jpg,054.jpg
+test,Bloodhound,train/Bloodhound/055.jpg,055.jpg
+test,Bloodhound,train/Bloodhound/064.jpg,064.jpg
+test,Bloodhound,train/Bloodhound/095.jpg,095.jpg
+test,Bloodhound,train/Bloodhound/106.jpg,106.jpg
+test,Bloodhound,train/Bloodhound/110.jpg,110.jpg
+test,Bloodhound,train/Bloodhound/112.jpg,112.jpg
+test,Bloodhound,train/Bloodhound/121.jpg,121.jpg
+test,Bloodhound,train/Bloodhound/127.jpg,127.jpg
+test,Bloodhound,train/Bloodhound/130.jpg,130.jpg
+test,Bloodhound,train/Bloodhound/132.jpg,132.jpg
+test,Bloodhound,train/Bloodhound/133.jpg,133.jpg
+test,Bloodhound,train/Bloodhound/141.jpg,141.jpg
+test,Bloodhound,train/Bloodhound/142.jpg,142.jpg
+test,Bloodhound,train/Bloodhound/147.jpg,147.jpg
+test,Bloodhound,valid/Bloodhound/10.jpg,10.jpg
+test,Bluetick,test/Bluetick/01.jpg,01.jpg
+test,Bluetick,test/Bluetick/04.jpg,04.jpg
+test,Bluetick,test/Bluetick/08.jpg,08.jpg
+test,Bluetick,train/Bluetick/001.jpg,001.jpg
+test,Bluetick,train/Bluetick/006.jpg,006.jpg
+test,Bluetick,train/Bluetick/026.jpg,026.jpg
+test,Bluetick,train/Bluetick/034.jpg,034.jpg
+test,Bluetick,train/Bluetick/043.jpg,043.jpg
+test,Bluetick,train/Bluetick/045.jpg,045.jpg
+test,Bluetick,train/Bluetick/052.jpg,052.jpg
+test,Bluetick,train/Bluetick/065.jpg,065.jpg
+test,Bluetick,train/Bluetick/075.jpg,075.jpg
+test,Bluetick,train/Bluetick/079.jpg,079.jpg
+test,Bluetick,train/Bluetick/085.jpg,085.jpg
+test,Bluetick,train/Bluetick/100.jpg,100.jpg
+test,Bluetick,valid/Bluetick/03.jpg,03.jpg
+test,Bluetick,valid/Bluetick/05.jpg,05.jpg
+test,Bluetick,valid/Bluetick/09.jpg,09.jpg
+test,Bluetick,valid/Bluetick/10.jpg,10.jpg
+test,Border Collie,test/Border Collie/05.jpg,05.jpg
+test,Border Collie,train/Border Collie/003.jpg,003.jpg
+test,Border Collie,train/Border Collie/005.jpg,005.jpg
+test,Border Collie,train/Border Collie/006.jpg,006.jpg
+test,Border Collie,train/Border Collie/007.jpg,007.jpg
+test,Border Collie,train/Border Collie/012.jpg,012.jpg
+test,Border Collie,train/Border Collie/013.jpg,013.jpg
+test,Border Collie,train/Border Collie/018.jpg,018.jpg
+test,Border Collie,train/Border Collie/024.jpg,024.jpg
+test,Border Collie,train/Border Collie/035.jpg,035.jpg
+test,Border Collie,train/Border Collie/038.jpg,038.jpg
+test,Border Collie,train/Border Collie/042.jpg,042.jpg
+test,Border Collie,train/Border Collie/047.jpg,047.jpg
+test,Border Collie,train/Border Collie/049.jpg,049.jpg
+test,Border Collie,train/Border Collie/050.jpg,050.jpg
+test,Border Collie,train/Border Collie/074.jpg,074.jpg
+test,Border Collie,train/Border Collie/079.jpg,079.jpg
+test,Border Collie,train/Border Collie/082.jpg,082.jpg
+test,Border Collie,train/Border Collie/104.jpg,104.jpg
+test,Borzoi,test/Borzoi/02.jpg,02.jpg
+test,Borzoi,test/Borzoi/10.jpg,10.jpg
+test,Borzoi,train/Borzoi/001.jpg,001.jpg
+test,Borzoi,train/Borzoi/004.jpg,004.jpg
+test,Borzoi,train/Borzoi/006.jpg,006.jpg
+test,Borzoi,train/Borzoi/010.jpg,010.jpg
+test,Borzoi,train/Borzoi/015.jpg,015.jpg
+test,Borzoi,train/Borzoi/016.jpg,016.jpg
+test,Borzoi,train/Borzoi/038.jpg,038.jpg
+test,Borzoi,train/Borzoi/059.jpg,059.jpg
+test,Borzoi,train/Borzoi/060.jpg,060.jpg
+test,Borzoi,train/Borzoi/063.jpg,063.jpg
+test,Borzoi,train/Borzoi/089.jpg,089.jpg
+test,Borzoi,train/Borzoi/091.jpg,091.jpg
+test,Borzoi,train/Borzoi/101.jpg,101.jpg
+test,Borzoi,train/Borzoi/102.jpg,102.jpg
+test,Borzoi,train/Borzoi/103.jpg,103.jpg
+test,Borzoi,train/Borzoi/106.jpg,106.jpg
+test,Borzoi,valid/Borzoi/01.jpg,01.jpg
+test,Boston Terrier,train/Boston Terrier/03.jpg,03.jpg
+test,Boston Terrier,train/Boston Terrier/19.jpg,19.jpg
+test,Boston Terrier,train/Boston Terrier/21.jpg,21.jpg
+test,Boston Terrier,train/Boston Terrier/30.jpg,30.jpg
+test,Boston Terrier,train/Boston Terrier/36.jpg,36.jpg
+test,Boston Terrier,train/Boston Terrier/42.jpg,42.jpg
+test,Boston Terrier,train/Boston Terrier/51.jpg,51.jpg
+test,Boston Terrier,train/Boston Terrier/66.jpg,66.jpg
+test,Boston Terrier,train/Boston Terrier/67.jpg,67.jpg
+test,Boston Terrier,train/Boston Terrier/70.jpg,70.jpg
+test,Boston Terrier,train/Boston Terrier/73.jpg,73.jpg
+test,Boston Terrier,train/Boston Terrier/77.jpg,77.jpg
+test,Boston Terrier,valid/Boston Terrier/05.jpg,05.jpg
+test,Boston Terrier,valid/Boston Terrier/06.jpg,06.jpg
+test,Boston Terrier,valid/Boston Terrier/08.jpg,08.jpg
+test,Boxer,test/Boxer/03.jpg,03.jpg
+test,Boxer,test/Boxer/05.jpg,05.jpg
+test,Boxer,train/Boxer/001.jpg,001.jpg
+test,Boxer,train/Boxer/005.jpg,005.jpg
+test,Boxer,train/Boxer/010.jpg,010.jpg
+test,Boxer,train/Boxer/011.jpg,011.jpg
+test,Boxer,train/Boxer/018.jpg,018.jpg
+test,Boxer,train/Boxer/021.jpg,021.jpg
+test,Boxer,train/Boxer/035.jpg,035.jpg
+test,Boxer,train/Boxer/043.jpg,043.jpg
+test,Boxer,train/Boxer/044.jpg,044.jpg
+test,Boxer,train/Boxer/070.jpg,070.jpg
+test,Boxer,train/Boxer/090.jpg,090.jpg
+test,Boxer,train/Boxer/092.jpg,092.jpg
+test,Boxer,train/Boxer/096.jpg,096.jpg
+test,Boxer,train/Boxer/106.jpg,106.jpg
+test,Boxer,train/Boxer/115.jpg,115.jpg
+test,Boxer,train/Boxer/117.jpg,117.jpg
+test,Boxer,train/Boxer/126.jpg,126.jpg
+test,Boxer,train/Boxer/134.jpg,134.jpg
+test,Boxer,valid/Boxer/03.jpg,03.jpg
+test,Boxer,valid/Boxer/07.jpg,07.jpg
+test,Bull Mastiff,test/Bull Mastiff/01.jpg,01.jpg
+test,Bull Mastiff,test/Bull Mastiff/03.jpg,03.jpg
+test,Bull Mastiff,test/Bull Mastiff/06.jpg,06.jpg
+test,Bull Mastiff,test/Bull Mastiff/09.jpg,09.jpg
+test,Bull Mastiff,train/Bull Mastiff/007.jpg,007.jpg
+test,Bull Mastiff,train/Bull Mastiff/014.jpg,014.jpg
+test,Bull Mastiff,train/Bull Mastiff/026.jpg,026.jpg
+test,Bull Mastiff,train/Bull Mastiff/027.jpg,027.jpg
+test,Bull Mastiff,train/Bull Mastiff/040.jpg,040.jpg
+test,Bull Mastiff,train/Bull Mastiff/044.jpg,044.jpg
+test,Bull Mastiff,train/Bull Mastiff/064.jpg,064.jpg
+test,Bull Mastiff,train/Bull Mastiff/071.jpg,071.jpg
+test,Bull Mastiff,train/Bull Mastiff/074.jpg,074.jpg
+test,Bull Mastiff,train/Bull Mastiff/083.jpg,083.jpg
+test,Bull Mastiff,train/Bull Mastiff/091.jpg,091.jpg
+test,Bull Mastiff,train/Bull Mastiff/096.jpg,096.jpg
+test,Bull Mastiff,train/Bull Mastiff/109.jpg,109.jpg
+test,Bull Mastiff,train/Bull Mastiff/110.jpg,110.jpg
+test,Bull Mastiff,train/Bull Mastiff/114.jpg,114.jpg
+test,Bull Mastiff,train/Bull Mastiff/125.jpg,125.jpg
+test,Bull Mastiff,valid/Bull Mastiff/04.jpg,04.jpg
+test,Bull Terrier,test/Bull Terrier/03.jpg,03.jpg
+test,Bull Terrier,test/Bull Terrier/04.jpg,04.jpg
+test,Bull Terrier,test/Bull Terrier/10.jpg,10.jpg
+test,Bull Terrier,train/Bull Terrier/005.jpg,005.jpg
+test,Bull Terrier,train/Bull Terrier/013.jpg,013.jpg
+test,Bull Terrier,train/Bull Terrier/015.jpg,015.jpg
+test,Bull Terrier,train/Bull Terrier/025.jpg,025.jpg
+test,Bull Terrier,train/Bull Terrier/026.jpg,026.jpg
+test,Bull Terrier,train/Bull Terrier/027.jpg,027.jpg
+test,Bull Terrier,train/Bull Terrier/031.jpg,031.jpg
+test,Bull Terrier,train/Bull Terrier/038.jpg,038.jpg
+test,Bull Terrier,train/Bull Terrier/059.jpg,059.jpg
+test,Bull Terrier,train/Bull Terrier/062.jpg,062.jpg
+test,Bull Terrier,train/Bull Terrier/069.jpg,069.jpg
+test,Bull Terrier,train/Bull Terrier/076.jpg,076.jpg
+test,Bull Terrier,train/Bull Terrier/092.jpg,092.jpg
+test,Bull Terrier,valid/Bull Terrier/06.jpg,06.jpg
+test,Bull Terrier,valid/Bull Terrier/08.jpg,08.jpg
+test,Bulldog,test/Bulldog/02.jpg,02.jpg
+test,Bulldog,test/Bulldog/06.jpg,06.jpg
+test,Bulldog,test/Bulldog/07.jpg,07.jpg
+test,Bulldog,test/Bulldog/10.jpg,10.jpg
+test,Bulldog,train/Bulldog/016.jpg,016.jpg
+test,Bulldog,train/Bulldog/020.jpg,020.jpg
+test,Bulldog,train/Bulldog/030.jpg,030.jpg
+test,Bulldog,train/Bulldog/035.jpg,035.jpg
+test,Bulldog,train/Bulldog/046.jpg,046.jpg
+test,Bulldog,train/Bulldog/057.jpg,057.jpg
+test,Bulldog,train/Bulldog/059.jpg,059.jpg
+test,Bulldog,train/Bulldog/062.jpg,062.jpg
+test,Bulldog,train/Bulldog/066.jpg,066.jpg
+test,Bulldog,train/Bulldog/069.jpg,069.jpg
+test,Bulldog,train/Bulldog/081.jpg,081.jpg
+test,Bulldog,train/Bulldog/082.jpg,082.jpg
+test,Bulldog,train/Bulldog/083.jpg,083.jpg
+test,Bulldog,train/Bulldog/094.jpg,094.jpg
+test,Bulldog,train/Bulldog/099.jpg,099.jpg
+test,Bulldog,train/Bulldog/122.jpg,122.jpg
+test,Bulldog,train/Bulldog/125.jpg,125.jpg
+test,Cairn,test/Cairn/03.jpg,03.jpg
+test,Cairn,test/Cairn/05.jpg,05.jpg
+test,Cairn,train/Cairn/005.jpg,005.jpg
+test,Cairn,train/Cairn/016.jpg,016.jpg
+test,Cairn,train/Cairn/025.jpg,025.jpg
+test,Cairn,train/Cairn/028.jpg,028.jpg
+test,Cairn,train/Cairn/045.jpg,045.jpg
+test,Cairn,train/Cairn/052.jpg,052.jpg
+test,Cairn,train/Cairn/058.jpg,058.jpg
+test,Cairn,train/Cairn/061.jpg,061.jpg
+test,Cairn,train/Cairn/070.jpg,070.jpg
+test,Cairn,train/Cairn/092.jpg,092.jpg
+test,Cairn,train/Cairn/093.jpg,093.jpg
+test,Cairn,train/Cairn/102.jpg,102.jpg
+test,Cairn,train/Cairn/104.jpg,104.jpg
+test,Cairn,train/Cairn/110.jpg,110.jpg
+test,Cairn,train/Cairn/111.jpg,111.jpg
+test,Cairn,valid/Cairn/02.jpg,02.jpg
+test,Cairn,valid/Cairn/08.jpg,08.jpg
+test,Cairn,valid/Cairn/09.jpg,09.jpg
+test,Chihuahua,test/Chihuahua/01.jpg,01.jpg
+test,Chihuahua,test/Chihuahua/02.jpg,02.jpg
+test,Chihuahua,train/Chihuahua/004.jpg,004.jpg
+test,Chihuahua,train/Chihuahua/011.jpg,011.jpg
+test,Chihuahua,train/Chihuahua/024.jpg,024.jpg
+test,Chihuahua,train/Chihuahua/027.jpg,027.jpg
+test,Chihuahua,train/Chihuahua/033.jpg,033.jpg
+test,Chihuahua,train/Chihuahua/040.jpg,040.jpg
+test,Chihuahua,train/Chihuahua/045.jpg,045.jpg
+test,Chihuahua,train/Chihuahua/056.jpg,056.jpg
+test,Chihuahua,train/Chihuahua/062.jpg,062.jpg
+test,Chihuahua,train/Chihuahua/075.jpg,075.jpg
+test,Chihuahua,train/Chihuahua/083.jpg,083.jpg
+test,Chihuahua,train/Chihuahua/090.jpg,090.jpg
+test,Chihuahua,train/Chihuahua/100.jpg,100.jpg
+test,Chihuahua,train/Chihuahua/107.jpg,107.jpg
+test,Chihuahua,valid/Chihuahua/02.jpg,02.jpg
+test,Chihuahua,valid/Chihuahua/04.jpg,04.jpg
+test,Chihuahua,valid/Chihuahua/08.jpg,08.jpg
+test,Chinese Crested,train/Chinese Crested/004.jpg,004.jpg
+test,Chinese Crested,train/Chinese Crested/007.jpg,007.jpg
+test,Chinese Crested,train/Chinese Crested/012.jpg,012.jpg
+test,Chinese Crested,train/Chinese Crested/022.jpg,022.jpg
+test,Chinese Crested,train/Chinese Crested/031.jpg,031.jpg
+test,Chinese Crested,train/Chinese Crested/033.jpg,033.jpg
+test,Chinese Crested,train/Chinese Crested/034.jpg,034.jpg
+test,Chinese Crested,train/Chinese Crested/060.jpg,060.jpg
+test,Chinese Crested,train/Chinese Crested/066.jpg,066.jpg
+test,Chinese Crested,train/Chinese Crested/068.jpg,068.jpg
+test,Chinese Crested,train/Chinese Crested/072.jpg,072.jpg
+test,Chinese Crested,train/Chinese Crested/073.jpg,073.jpg
+test,Chinese Crested,train/Chinese Crested/090.jpg,090.jpg
+test,Chinese Crested,train/Chinese Crested/091.jpg,091.jpg
+test,Chinese Crested,train/Chinese Crested/095.jpg,095.jpg
+test,Chinese Crested,train/Chinese Crested/096.jpg,096.jpg
+test,Chinese Crested,train/Chinese Crested/100.jpg,100.jpg
+test,Chinese Crested,train/Chinese Crested/106.jpg,106.jpg
+test,Chinese Crested,train/Chinese Crested/110.jpg,110.jpg
+test,Chinese Crested,valid/Chinese Crested/05.jpg,05.jpg
+test,Chow,train/Chow/007.jpg,007.jpg
+test,Chow,train/Chow/022.jpg,022.jpg
+test,Chow,train/Chow/025.jpg,025.jpg
+test,Chow,train/Chow/029.jpg,029.jpg
+test,Chow,train/Chow/030.jpg,030.jpg
+test,Chow,train/Chow/038.jpg,038.jpg
+test,Chow,train/Chow/040.jpg,040.jpg
+test,Chow,train/Chow/047.jpg,047.jpg
+test,Chow,train/Chow/061.jpg,061.jpg
+test,Chow,train/Chow/065.jpg,065.jpg
+test,Chow,train/Chow/069.jpg,069.jpg
+test,Chow,train/Chow/073.jpg,073.jpg
+test,Chow,train/Chow/075.jpg,075.jpg
+test,Chow,train/Chow/096.jpg,096.jpg
+test,Chow,train/Chow/100.jpg,100.jpg
+test,Chow,train/Chow/101.jpg,101.jpg
+test,Chow,train/Chow/108.jpg,108.jpg
+test,Chow,valid/Chow/03.jpg,03.jpg
+test,Chow,valid/Chow/04.jpg,04.jpg
+test,Chow,valid/Chow/10.jpg,10.jpg
+test,Clumber,test/Clumber/01.jpg,01.jpg
+test,Clumber,test/Clumber/03.jpg,03.jpg
+test,Clumber,test/Clumber/07.jpg,07.jpg
+test,Clumber,train/Clumber/014.jpg,014.jpg
+test,Clumber,train/Clumber/027.jpg,027.jpg
+test,Clumber,train/Clumber/033.jpg,033.jpg
+test,Clumber,train/Clumber/050.jpg,050.jpg
+test,Clumber,train/Clumber/060.jpg,060.jpg
+test,Clumber,train/Clumber/065.jpg,065.jpg
+test,Clumber,train/Clumber/066.jpg,066.jpg
+test,Clumber,train/Clumber/093.jpg,093.jpg
+test,Clumber,train/Clumber/094.jpg,094.jpg
+test,Clumber,train/Clumber/096.jpg,096.jpg
+test,Clumber,train/Clumber/105.jpg,105.jpg
+test,Clumber,train/Clumber/110.jpg,110.jpg
+test,Clumber,train/Clumber/114.jpg,114.jpg
+test,Clumber,train/Clumber/115.jpg,115.jpg
+test,Clumber,train/Clumber/117.jpg,117.jpg
+test,Clumber,train/Clumber/120.jpg,120.jpg
+test,Clumber,train/Clumber/121.jpg,121.jpg
+test,Clumber,valid/Clumber/01.jpg,01.jpg
+test,Cockapoo,test/Cockapoo/06.jpg,06.jpg
+test,Cockapoo,train/Cockapoo/005.jpg,005.jpg
+test,Cockapoo,train/Cockapoo/017.jpg,017.jpg
+test,Cockapoo,train/Cockapoo/018.jpg,018.jpg
+test,Cockapoo,train/Cockapoo/023.jpg,023.jpg
+test,Cockapoo,train/Cockapoo/030.jpg,030.jpg
+test,Cockapoo,train/Cockapoo/033.jpg,033.jpg
+test,Cockapoo,train/Cockapoo/039.jpg,039.jpg
+test,Cockapoo,train/Cockapoo/054.jpg,054.jpg
+test,Cockapoo,train/Cockapoo/055.jpg,055.jpg
+test,Cockapoo,train/Cockapoo/056.jpg,056.jpg
+test,Cockapoo,train/Cockapoo/065.jpg,065.jpg
+test,Cockapoo,train/Cockapoo/066.jpg,066.jpg
+test,Cockapoo,train/Cockapoo/069.jpg,069.jpg
+test,Cockapoo,train/Cockapoo/083.jpg,083.jpg
+test,Cockapoo,train/Cockapoo/084.jpg,084.jpg
+test,Cockapoo,train/Cockapoo/092.jpg,092.jpg
+test,Cockapoo,train/Cockapoo/098.jpg,098.jpg
+test,Cockapoo,train/Cockapoo/109.jpg,109.jpg
+test,Cockapoo,train/Cockapoo/111.jpg,111.jpg
+test,Cockapoo,train/Cockapoo/117.jpg,117.jpg
+test,Cocker,test/Cocker/02.jpg,02.jpg
+test,Cocker,test/Cocker/04.jpg,04.jpg
+test,Cocker,train/Cocker/001.jpg,001.jpg
+test,Cocker,train/Cocker/004.jpg,004.jpg
+test,Cocker,train/Cocker/008.jpg,008.jpg
+test,Cocker,train/Cocker/016.jpg,016.jpg
+test,Cocker,train/Cocker/017.jpg,017.jpg
+test,Cocker,train/Cocker/025.jpg,025.jpg
+test,Cocker,train/Cocker/029.jpg,029.jpg
+test,Cocker,train/Cocker/040.jpg,040.jpg
+test,Cocker,train/Cocker/045.jpg,045.jpg
+test,Cocker,train/Cocker/058.jpg,058.jpg
+test,Cocker,train/Cocker/063.jpg,063.jpg
+test,Cocker,train/Cocker/069.jpg,069.jpg
+test,Cocker,train/Cocker/092.jpg,092.jpg
+test,Cocker,train/Cocker/102.jpg,102.jpg
+test,Cocker,train/Cocker/112.jpg,112.jpg
+test,Cocker,train/Cocker/116.jpg,116.jpg
+test,Cocker,train/Cocker/117.jpg,117.jpg
+test,Cocker,train/Cocker/121.jpg,121.jpg
+test,Cocker,train/Cocker/128.jpg,128.jpg
+test,Cocker,train/Cocker/130.jpg,130.jpg
+test,Collie,train/Collie/010.jpg,010.jpg
+test,Collie,train/Collie/034.jpg,034.jpg
+test,Collie,train/Collie/038.jpg,038.jpg
+test,Collie,train/Collie/045.jpg,045.jpg
+test,Collie,train/Collie/047.jpg,047.jpg
+test,Collie,train/Collie/051.jpg,051.jpg
+test,Collie,train/Collie/054.jpg,054.jpg
+test,Collie,train/Collie/064.jpg,064.jpg
+test,Collie,train/Collie/066.jpg,066.jpg
+test,Collie,train/Collie/072.jpg,072.jpg
+test,Collie,train/Collie/076.jpg,076.jpg
+test,Collie,train/Collie/080.jpg,080.jpg
+test,Collie,train/Collie/086.jpg,086.jpg
+test,Collie,train/Collie/090.jpg,090.jpg
+test,Collie,train/Collie/098.jpg,098.jpg
+test,Collie,train/Collie/099.jpg,099.jpg
+test,Collie,train/Collie/104.jpg,104.jpg
+test,Collie,train/Collie/113.jpg,113.jpg
+test,Collie,valid/Collie/07.jpg,07.jpg
+test,Collie,valid/Collie/10.jpg,10.jpg
+test,Corgi,test/Corgi/06.jpg,06.jpg
+test,Corgi,test/Corgi/08.jpg,08.jpg
+test,Corgi,train/Corgi/002.jpg,002.jpg
+test,Corgi,train/Corgi/003.jpg,003.jpg
+test,Corgi,train/Corgi/004.jpg,004.jpg
+test,Corgi,train/Corgi/014.jpg,014.jpg
+test,Corgi,train/Corgi/025.jpg,025.jpg
+test,Corgi,train/Corgi/027.jpg,027.jpg
+test,Corgi,train/Corgi/041.jpg,041.jpg
+test,Corgi,train/Corgi/046.jpg,046.jpg
+test,Corgi,train/Corgi/050.jpg,050.jpg
+test,Corgi,train/Corgi/060.jpg,060.jpg
+test,Corgi,train/Corgi/062.jpg,062.jpg
+test,Corgi,train/Corgi/064.jpg,064.jpg
+test,Corgi,train/Corgi/068.jpg,068.jpg
+test,Corgi,train/Corgi/077.jpg,077.jpg
+test,Corgi,train/Corgi/082.jpg,082.jpg
+test,Corgi,train/Corgi/093.jpg,093.jpg
+test,Corgi,train/Corgi/105.jpg,105.jpg
+test,Corgi,valid/Corgi/04.jpg,04.jpg
+test,Coyote,test/Coyote/07.jpg,07.jpg
+test,Coyote,test/Coyote/09.jpg,09.jpg
+test,Coyote,train/Coyote/03.jpg,03.jpg
+test,Coyote,train/Coyote/05.jpg,05.jpg
+test,Coyote,train/Coyote/14.jpg,14.jpg
+test,Coyote,train/Coyote/15.jpg,15.jpg
+test,Coyote,train/Coyote/30.jpg,30.jpg
+test,Coyote,train/Coyote/34.jpg,34.jpg
+test,Coyote,train/Coyote/40.jpg,40.jpg
+test,Coyote,train/Coyote/47.jpg,47.jpg
+test,Coyote,train/Coyote/65.jpg,65.jpg
+test,Coyote,train/Coyote/68.jpg,68.jpg
+test,Coyote,train/Coyote/75.jpg,75.jpg
+test,Coyote,valid/Coyote/07.jpg,07.jpg
+test,Coyote,valid/Coyote/09.jpg,09.jpg
+test,Dalmation,test/Dalmation/02.jpg,02.jpg
+test,Dalmation,test/Dalmation/10.jpg,10.jpg
+test,Dalmation,train/Dalmation/03.jpg,03.jpg
+test,Dalmation,train/Dalmation/30.jpg,30.jpg
+test,Dalmation,train/Dalmation/38.jpg,38.jpg
+test,Dalmation,train/Dalmation/46.jpg,46.jpg
+test,Dalmation,train/Dalmation/51.jpg,51.jpg
+test,Dalmation,train/Dalmation/66.jpg,66.jpg
+test,Dalmation,train/Dalmation/67.jpg,67.jpg
+test,Dalmation,train/Dalmation/70.jpg,70.jpg
+test,Dalmation,train/Dalmation/72.jpg,72.jpg
+test,Dalmation,train/Dalmation/80.jpg,80.jpg
+test,Dalmation,train/Dalmation/81.jpg,81.jpg
+test,Dalmation,train/Dalmation/84.jpg,84.jpg
+test,Dalmation,valid/Dalmation/07.jpg,07.jpg
+test,Dalmation,valid/Dalmation/08.jpg,08.jpg
+test,Dhole,test/Dhole/02.jpg,02.jpg
+test,Dhole,test/Dhole/03.jpg,03.jpg
+test,Dhole,test/Dhole/06.jpg,06.jpg
+test,Dhole,train/Dhole/009.jpg,009.jpg
+test,Dhole,train/Dhole/013.jpg,013.jpg
+test,Dhole,train/Dhole/026.jpg,026.jpg
+test,Dhole,train/Dhole/028.jpg,028.jpg
+test,Dhole,train/Dhole/034.jpg,034.jpg
+test,Dhole,train/Dhole/035.jpg,035.jpg
+test,Dhole,train/Dhole/036.jpg,036.jpg
+test,Dhole,train/Dhole/043.jpg,043.jpg
+test,Dhole,train/Dhole/058.jpg,058.jpg
+test,Dhole,train/Dhole/060.jpg,060.jpg
+test,Dhole,train/Dhole/073.jpg,073.jpg
+test,Dhole,train/Dhole/078.jpg,078.jpg
+test,Dhole,train/Dhole/080.jpg,080.jpg
+test,Dhole,train/Dhole/094.jpg,094.jpg
+test,Dhole,train/Dhole/108.jpg,108.jpg
+test,Dhole,train/Dhole/110.jpg,110.jpg
+test,Dhole,train/Dhole/116.jpg,116.jpg
+test,Dingo,test/Dingo/06.jpg,06.jpg
+test,Dingo,test/Dingo/07.jpg,07.jpg
+test,Dingo,test/Dingo/08.jpg,08.jpg
+test,Dingo,train/Dingo/009.jpg,009.jpg
+test,Dingo,train/Dingo/011.jpg,011.jpg
+test,Dingo,train/Dingo/012.jpg,012.jpg
+test,Dingo,train/Dingo/067.jpg,067.jpg
+test,Dingo,train/Dingo/070.jpg,070.jpg
+test,Dingo,train/Dingo/072.jpg,072.jpg
+test,Dingo,train/Dingo/079.jpg,079.jpg
+test,Dingo,train/Dingo/083.jpg,083.jpg
+test,Dingo,train/Dingo/085.jpg,085.jpg
+test,Dingo,train/Dingo/087.jpg,087.jpg
+test,Dingo,train/Dingo/102.jpg,102.jpg
+test,Dingo,train/Dingo/105.jpg,105.jpg
+test,Dingo,train/Dingo/111.jpg,111.jpg
+test,Dingo,train/Dingo/114.jpg,114.jpg
+test,Dingo,train/Dingo/128.jpg,128.jpg
+test,Dingo,valid/Dingo/02.jpg,02.jpg
+test,Dingo,valid/Dingo/04.jpg,04.jpg
+test,Dingo,valid/Dingo/06.jpg,06.jpg
+test,Dingo,valid/Dingo/08.jpg,08.jpg
+test,Doberman,test/Doberman/01.jpg,01.jpg
+test,Doberman,test/Doberman/05.jpg,05.jpg
+test,Doberman,test/Doberman/06.jpg,06.jpg
+test,Doberman,train/Doberman/003.jpg,003.jpg
+test,Doberman,train/Doberman/017.jpg,017.jpg
+test,Doberman,train/Doberman/049.jpg,049.jpg
+test,Doberman,train/Doberman/053.jpg,053.jpg
+test,Doberman,train/Doberman/054.jpg,054.jpg
+test,Doberman,train/Doberman/055.jpg,055.jpg
+test,Doberman,train/Doberman/060.jpg,060.jpg
+test,Doberman,train/Doberman/062.jpg,062.jpg
+test,Doberman,train/Doberman/065.jpg,065.jpg
+test,Doberman,train/Doberman/067.jpg,067.jpg
+test,Doberman,train/Doberman/080.jpg,080.jpg
+test,Doberman,train/Doberman/089.jpg,089.jpg
+test,Doberman,train/Doberman/098.jpg,098.jpg
+test,Doberman,train/Doberman/099.jpg,099.jpg
+test,Doberman,train/Doberman/100.jpg,100.jpg
+test,Doberman,train/Doberman/102.jpg,102.jpg
+test,Doberman,train/Doberman/116.jpg,116.jpg
+test,Elk Hound,test/Elk Hound/08.jpg,08.jpg
+test,Elk Hound,train/Elk Hound/012.jpg,012.jpg
+test,Elk Hound,train/Elk Hound/014.jpg,014.jpg
+test,Elk Hound,train/Elk Hound/027.jpg,027.jpg
+test,Elk Hound,train/Elk Hound/042.jpg,042.jpg
+test,Elk Hound,train/Elk Hound/052.jpg,052.jpg
+test,Elk Hound,train/Elk Hound/055.jpg,055.jpg
+test,Elk Hound,train/Elk Hound/061.jpg,061.jpg
+test,Elk Hound,train/Elk Hound/065.jpg,065.jpg
+test,Elk Hound,train/Elk Hound/077.jpg,077.jpg
+test,Elk Hound,train/Elk Hound/081.jpg,081.jpg
+test,Elk Hound,train/Elk Hound/083.jpg,083.jpg
+test,Elk Hound,train/Elk Hound/093.jpg,093.jpg
+test,Elk Hound,train/Elk Hound/095.jpg,095.jpg
+test,Elk Hound,train/Elk Hound/096.jpg,096.jpg
+test,Elk Hound,train/Elk Hound/099.jpg,099.jpg
+test,Elk Hound,valid/Elk Hound/06.jpg,06.jpg
+test,Elk Hound,valid/Elk Hound/07.jpg,07.jpg
+test,French Bulldog,test/French Bulldog/08.jpg,08.jpg
+test,French Bulldog,train/French Bulldog/01.jpg,01.jpg
+test,French Bulldog,train/French Bulldog/06.jpg,06.jpg
+test,French Bulldog,train/French Bulldog/15.jpg,15.jpg
+test,French Bulldog,train/French Bulldog/17.jpg,17.jpg
+test,French Bulldog,train/French Bulldog/24.jpg,24.jpg
+test,French Bulldog,train/French Bulldog/30.jpg,30.jpg
+test,French Bulldog,train/French Bulldog/36.jpg,36.jpg
+test,French Bulldog,train/French Bulldog/45.jpg,45.jpg
+test,French Bulldog,train/French Bulldog/50.jpg,50.jpg
+test,French Bulldog,train/French Bulldog/57.jpg,57.jpg
+test,French Bulldog,train/French Bulldog/60.jpg,60.jpg
+test,French Bulldog,train/French Bulldog/67.jpg,67.jpg
+test,French Bulldog,train/French Bulldog/78.jpg,78.jpg
+test,French Bulldog,train/French Bulldog/92.jpg,92.jpg
+test,French Bulldog,train/French Bulldog/93.jpg,93.jpg
+test,French Bulldog,valid/French Bulldog/06.jpg,06.jpg
+test,German Sheperd,test/German Sheperd/08.jpg,08.jpg
+test,German Sheperd,test/German Sheperd/10.jpg,10.jpg
+test,German Sheperd,train/German Sheperd/003.jpg,003.jpg
+test,German Sheperd,train/German Sheperd/010.jpg,010.jpg
+test,German Sheperd,train/German Sheperd/025.jpg,025.jpg
+test,German Sheperd,train/German Sheperd/030.jpg,030.jpg
+test,German Sheperd,train/German Sheperd/034.jpg,034.jpg
+test,German Sheperd,train/German Sheperd/037.jpg,037.jpg
+test,German Sheperd,train/German Sheperd/039.jpg,039.jpg
+test,German Sheperd,train/German Sheperd/046.jpg,046.jpg
+test,German Sheperd,train/German Sheperd/051.jpg,051.jpg
+test,German Sheperd,train/German Sheperd/057.jpg,057.jpg
+test,German Sheperd,train/German Sheperd/077.jpg,077.jpg
+test,German Sheperd,train/German Sheperd/090.jpg,090.jpg
+test,German Sheperd,train/German Sheperd/093.jpg,093.jpg
+test,German Sheperd,train/German Sheperd/104.jpg,104.jpg
+test,German Sheperd,train/German Sheperd/106.jpg,106.jpg
+test,German Sheperd,valid/German Sheperd/06.jpg,06.jpg
+test,German Sheperd,valid/German Sheperd/10.jpg,10.jpg
+test,Golden Retriever,test/Golden Retriever/07.jpg,07.jpg
+test,Golden Retriever,test/Golden Retriever/10.jpg,10.jpg
+test,Golden Retriever,train/Golden Retriever/008.jpg,008.jpg
+test,Golden Retriever,train/Golden Retriever/019.jpg,019.jpg
+test,Golden Retriever,train/Golden Retriever/033.jpg,033.jpg
+test,Golden Retriever,train/Golden Retriever/043.jpg,043.jpg
+test,Golden Retriever,train/Golden Retriever/050.jpg,050.jpg
+test,Golden Retriever,train/Golden Retriever/060.jpg,060.jpg
+test,Golden Retriever,train/Golden Retriever/063.jpg,063.jpg
+test,Golden Retriever,train/Golden Retriever/064.jpg,064.jpg
+test,Golden Retriever,train/Golden Retriever/077.jpg,077.jpg
+test,Golden Retriever,train/Golden Retriever/079.jpg,079.jpg
+test,Golden Retriever,train/Golden Retriever/081.jpg,081.jpg
+test,Golden Retriever,train/Golden Retriever/082.jpg,082.jpg
+test,Golden Retriever,train/Golden Retriever/084.jpg,084.jpg
+test,Golden Retriever,train/Golden Retriever/088.jpg,088.jpg
+test,Golden Retriever,train/Golden Retriever/090.jpg,090.jpg
+test,Golden Retriever,train/Golden Retriever/101.jpg,101.jpg
+test,Golden Retriever,train/Golden Retriever/104.jpg,104.jpg
+test,Golden Retriever,train/Golden Retriever/108.jpg,108.jpg
+test,Golden Retriever,train/Golden Retriever/110.jpg,110.jpg
+test,Golden Retriever,valid/Golden Retriever/08.jpg,08.jpg
+test,Great Dane,test/Great Dane/07.jpg,07.jpg
+test,Great Dane,train/Great Dane/004.jpg,004.jpg
+test,Great Dane,train/Great Dane/005.jpg,005.jpg
+test,Great Dane,train/Great Dane/012.jpg,012.jpg
+test,Great Dane,train/Great Dane/014.jpg,014.jpg
+test,Great Dane,train/Great Dane/015.jpg,015.jpg
+test,Great Dane,train/Great Dane/035.jpg,035.jpg
+test,Great Dane,train/Great Dane/037.jpg,037.jpg
+test,Great Dane,train/Great Dane/039.jpg,039.jpg
+test,Great Dane,train/Great Dane/043.jpg,043.jpg
+test,Great Dane,train/Great Dane/055.jpg,055.jpg
+test,Great Dane,train/Great Dane/065.jpg,065.jpg
+test,Great Dane,train/Great Dane/070.jpg,070.jpg
+test,Great Dane,train/Great Dane/085.jpg,085.jpg
+test,Great Dane,train/Great Dane/094.jpg,094.jpg
+test,Great Dane,train/Great Dane/111.jpg,111.jpg
+test,Great Dane,train/Great Dane/117.jpg,117.jpg
+test,Great Dane,train/Great Dane/118.jpg,118.jpg
+test,Great Dane,valid/Great Dane/04.jpg,04.jpg
+test,Great Dane,valid/Great Dane/07.jpg,07.jpg
+test,Great Dane,valid/Great Dane/10.jpg,10.jpg
+test,Great Perenees,test/Great Perenees/01.jpg,01.jpg
+test,Great Perenees,train/Great Perenees/01.jpg,01.jpg
+test,Great Perenees,train/Great Perenees/05.jpg,05.jpg
+test,Great Perenees,train/Great Perenees/11.jpg,11.jpg
+test,Great Perenees,train/Great Perenees/21.jpg,21.jpg
+test,Great Perenees,train/Great Perenees/40.jpg,40.jpg
+test,Great Perenees,train/Great Perenees/47.jpg,47.jpg
+test,Great Perenees,train/Great Perenees/50.jpg,50.jpg
+test,Great Perenees,train/Great Perenees/60.jpg,60.jpg
+test,Great Perenees,train/Great Perenees/62.jpg,62.jpg
+test,Great Perenees,train/Great Perenees/77.jpg,77.jpg
+test,Great Perenees,valid/Great Perenees/03.jpg,03.jpg
+test,Great Perenees,valid/Great Perenees/05.jpg,05.jpg
+test,Great Perenees,valid/Great Perenees/06.jpg,06.jpg
+test,Great Perenees,valid/Great Perenees/09.jpg,09.jpg
+test,Greyhound,test/Greyhound/02.jpg,02.jpg
+test,Greyhound,test/Greyhound/07.jpg,07.jpg
+test,Greyhound,train/Greyhound/012.jpg,012.jpg
+test,Greyhound,train/Greyhound/015.jpg,015.jpg
+test,Greyhound,train/Greyhound/026.jpg,026.jpg
+test,Greyhound,train/Greyhound/035.jpg,035.jpg
+test,Greyhound,train/Greyhound/040.jpg,040.jpg
+test,Greyhound,train/Greyhound/044.jpg,044.jpg
+test,Greyhound,train/Greyhound/049.jpg,049.jpg
+test,Greyhound,train/Greyhound/052.jpg,052.jpg
+test,Greyhound,train/Greyhound/057.jpg,057.jpg
+test,Greyhound,train/Greyhound/060.jpg,060.jpg
+test,Greyhound,train/Greyhound/063.jpg,063.jpg
+test,Greyhound,train/Greyhound/072.jpg,072.jpg
+test,Greyhound,train/Greyhound/075.jpg,075.jpg
+test,Greyhound,train/Greyhound/077.jpg,077.jpg
+test,Greyhound,train/Greyhound/079.jpg,079.jpg
+test,Greyhound,train/Greyhound/092.jpg,092.jpg
+test,Greyhound,valid/Greyhound/03.jpg,03.jpg
+test,Groenendael,train/Groenendael/001.jpg,001.jpg
+test,Groenendael,train/Groenendael/002.jpg,002.jpg
+test,Groenendael,train/Groenendael/007.jpg,007.jpg
+test,Groenendael,train/Groenendael/018.jpg,018.jpg
+test,Groenendael,train/Groenendael/019.jpg,019.jpg
+test,Groenendael,train/Groenendael/040.jpg,040.jpg
+test,Groenendael,train/Groenendael/048.jpg,048.jpg
+test,Groenendael,train/Groenendael/059.jpg,059.jpg
+test,Groenendael,train/Groenendael/061.jpg,061.jpg
+test,Groenendael,train/Groenendael/062.jpg,062.jpg
+test,Groenendael,train/Groenendael/068.jpg,068.jpg
+test,Groenendael,train/Groenendael/069.jpg,069.jpg
+test,Groenendael,train/Groenendael/076.jpg,076.jpg
+test,Groenendael,train/Groenendael/086.jpg,086.jpg
+test,Groenendael,train/Groenendael/089.jpg,089.jpg
+test,Groenendael,train/Groenendael/098.jpg,098.jpg
+test,Groenendael,train/Groenendael/101.jpg,101.jpg
+test,Groenendael,train/Groenendael/110.jpg,110.jpg
+test,Groenendael,valid/Groenendael/07.jpg,07.jpg
+test,Groenendael,valid/Groenendael/10.jpg,10.jpg
+test,Irish Spaniel,test/Irish Spaniel/01.jpg,01.jpg
+test,Irish Spaniel,test/Irish Spaniel/02.jpg,02.jpg
+test,Irish Spaniel,test/Irish Spaniel/06.jpg,06.jpg
+test,Irish Spaniel,train/Irish Spaniel/003.jpg,003.jpg
+test,Irish Spaniel,train/Irish Spaniel/024.jpg,024.jpg
+test,Irish Spaniel,train/Irish Spaniel/025.jpg,025.jpg
+test,Irish Spaniel,train/Irish Spaniel/030.jpg,030.jpg
+test,Irish Spaniel,train/Irish Spaniel/055.jpg,055.jpg
+test,Irish Spaniel,train/Irish Spaniel/064.jpg,064.jpg
+test,Irish Spaniel,train/Irish Spaniel/066.jpg,066.jpg
+test,Irish Spaniel,train/Irish Spaniel/067.jpg,067.jpg
+test,Irish Spaniel,train/Irish Spaniel/068.jpg,068.jpg
+test,Irish Spaniel,train/Irish Spaniel/082.jpg,082.jpg
+test,Irish Spaniel,train/Irish Spaniel/096.jpg,096.jpg
+test,Irish Spaniel,train/Irish Spaniel/104.jpg,104.jpg
+test,Irish Spaniel,train/Irish Spaniel/113.jpg,113.jpg
+test,Irish Spaniel,train/Irish Spaniel/116.jpg,116.jpg
+test,Irish Spaniel,train/Irish Spaniel/117.jpg,117.jpg
+test,Irish Spaniel,train/Irish Spaniel/119.jpg,119.jpg
+test,Irish Spaniel,valid/Irish Spaniel/07.jpg,07.jpg
+test,Irish Spaniel,valid/Irish Spaniel/09.jpg,09.jpg
+test,Irish Wolfhound,test/Irish Wolfhound/02.jpg,02.jpg
+test,Irish Wolfhound,test/Irish Wolfhound/08.jpg,08.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/09.jpg,09.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/16.jpg,16.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/17.jpg,17.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/28.jpg,28.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/30.jpg,30.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/34.jpg,34.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/37.jpg,37.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/44.jpg,44.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/46.jpg,46.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/49.jpg,49.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/70.jpg,70.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/72.jpg,72.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/83.jpg,83.jpg
+test,Irish Wolfhound,train/Irish Wolfhound/85.jpg,85.jpg
+test,Irish Wolfhound,valid/Irish Wolfhound/10.jpg,10.jpg
+test,Japanese Spaniel,test/Japanese Spaniel/02.jpg,02.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/001.jpg,001.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/004.jpg,004.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/005.jpg,005.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/008.jpg,008.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/010.jpg,010.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/016.jpg,016.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/025.jpg,025.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/035.jpg,035.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/054.jpg,054.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/056.jpg,056.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/062.jpg,062.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/063.jpg,063.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/068.jpg,068.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/074.jpg,074.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/077.jpg,077.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/087.jpg,087.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/088.jpg,088.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/091.jpg,091.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/100.jpg,100.jpg
+test,Japanese Spaniel,train/Japanese Spaniel/107.jpg,107.jpg
+test,Japanese Spaniel,valid/Japanese Spaniel/06.jpg,06.jpg
+test,Komondor,test/Komondor/01.jpg,01.jpg
+test,Komondor,test/Komondor/04.jpg,04.jpg
+test,Komondor,test/Komondor/05.jpg,05.jpg
+test,Komondor,test/Komondor/06.jpg,06.jpg
+test,Komondor,train/Komondor/013.jpg,013.jpg
+test,Komondor,train/Komondor/022.jpg,022.jpg
+test,Komondor,train/Komondor/042.jpg,042.jpg
+test,Komondor,train/Komondor/063.jpg,063.jpg
+test,Komondor,train/Komondor/068.jpg,068.jpg
+test,Komondor,train/Komondor/070.jpg,070.jpg
+test,Komondor,train/Komondor/075.jpg,075.jpg
+test,Komondor,train/Komondor/079.jpg,079.jpg
+test,Komondor,train/Komondor/086.jpg,086.jpg
+test,Komondor,train/Komondor/089.jpg,089.jpg
+test,Komondor,train/Komondor/093.jpg,093.jpg
+test,Komondor,train/Komondor/095.jpg,095.jpg
+test,Komondor,valid/Komondor/07.jpg,07.jpg
+test,Komondor,valid/Komondor/08.jpg,08.jpg
+test,Komondor,valid/Komondor/10.jpg,10.jpg
+test,Labradoodle,test/Labradoodle/02.jpg,02.jpg
+test,Labradoodle,test/Labradoodle/05.jpg,05.jpg
+test,Labradoodle,test/Labradoodle/08.jpg,08.jpg
+test,Labradoodle,train/Labradoodle/012.jpg,012.jpg
+test,Labradoodle,train/Labradoodle/021.jpg,021.jpg
+test,Labradoodle,train/Labradoodle/026.jpg,026.jpg
+test,Labradoodle,train/Labradoodle/028.jpg,028.jpg
+test,Labradoodle,train/Labradoodle/032.jpg,032.jpg
+test,Labradoodle,train/Labradoodle/046.jpg,046.jpg
+test,Labradoodle,train/Labradoodle/058.jpg,058.jpg
+test,Labradoodle,train/Labradoodle/068.jpg,068.jpg
+test,Labradoodle,train/Labradoodle/080.jpg,080.jpg
+test,Labradoodle,train/Labradoodle/082.jpg,082.jpg
+test,Labradoodle,train/Labradoodle/085.jpg,085.jpg
+test,Labradoodle,train/Labradoodle/089.jpg,089.jpg
+test,Labradoodle,train/Labradoodle/098.jpg,098.jpg
+test,Labradoodle,train/Labradoodle/105.jpg,105.jpg
+test,Labradoodle,valid/Labradoodle/03.jpg,03.jpg
+test,Labrador,test/Labrador/07.jpg,07.jpg
+test,Labrador,train/Labrador/001.jpg,001.jpg
+test,Labrador,train/Labrador/027.jpg,027.jpg
+test,Labrador,train/Labrador/031.jpg,031.jpg
+test,Labrador,train/Labrador/035.jpg,035.jpg
+test,Labrador,train/Labrador/041.jpg,041.jpg
+test,Labrador,train/Labrador/043.jpg,043.jpg
+test,Labrador,train/Labrador/055.jpg,055.jpg
+test,Labrador,train/Labrador/063.jpg,063.jpg
+test,Labrador,train/Labrador/070.jpg,070.jpg
+test,Labrador,train/Labrador/080.jpg,080.jpg
+test,Labrador,train/Labrador/085.jpg,085.jpg
+test,Labrador,train/Labrador/096.jpg,096.jpg
+test,Labrador,train/Labrador/101.jpg,101.jpg
+test,Labrador,train/Labrador/102.jpg,102.jpg
+test,Labrador,train/Labrador/105.jpg,105.jpg
+test,Labrador,train/Labrador/113.jpg,113.jpg
+test,Labrador,train/Labrador/119.jpg,119.jpg
+test,Labrador,train/Labrador/120.jpg,120.jpg
+test,Labrador,train/Labrador/127.jpg,127.jpg
+test,Labrador,train/Labrador/131.jpg,131.jpg
+test,Labrador,train/Labrador/145.jpg,145.jpg
+test,Labrador,train/Labrador/152.jpg,152.jpg
+test,Labrador,train/Labrador/158.jpg,158.jpg
+test,Labrador,valid/Labrador/01.jpg,01.jpg
+test,Labrador,valid/Labrador/04.jpg,04.jpg
+test,Labrador,valid/Labrador/05.jpg,05.jpg
+test,Lhasa,test/Lhasa/03.jpg,03.jpg
+test,Lhasa,test/Lhasa/08.jpg,08.jpg
+test,Lhasa,test/Lhasa/10.jpg,10.jpg
+test,Lhasa,train/Lhasa/005.jpg,005.jpg
+test,Lhasa,train/Lhasa/011.jpg,011.jpg
+test,Lhasa,train/Lhasa/019.jpg,019.jpg
+test,Lhasa,train/Lhasa/020.jpg,020.jpg
+test,Lhasa,train/Lhasa/022.jpg,022.jpg
+test,Lhasa,train/Lhasa/027.jpg,027.jpg
+test,Lhasa,train/Lhasa/028.jpg,028.jpg
+test,Lhasa,train/Lhasa/062.jpg,062.jpg
+test,Lhasa,train/Lhasa/063.jpg,063.jpg
+test,Lhasa,train/Lhasa/073.jpg,073.jpg
+test,Lhasa,train/Lhasa/079.jpg,079.jpg
+test,Lhasa,train/Lhasa/084.jpg,084.jpg
+test,Lhasa,train/Lhasa/088.jpg,088.jpg
+test,Lhasa,train/Lhasa/089.jpg,089.jpg
+test,Lhasa,train/Lhasa/091.jpg,091.jpg
+test,Lhasa,train/Lhasa/096.jpg,096.jpg
+test,Lhasa,train/Lhasa/098.jpg,098.jpg
+test,Lhasa,train/Lhasa/105.jpg,105.jpg
+test,Lhasa,train/Lhasa/107.jpg,107.jpg
+test,Lhasa,train/Lhasa/126.jpg,126.jpg
+test,Lhasa,train/Lhasa/135.jpg,135.jpg
+test,Lhasa,train/Lhasa/173.jpg,173.jpg
+test,Lhasa,train/Lhasa/185.jpg,185.jpg
+test,Lhasa,train/Lhasa/187.jpg,187.jpg
+test,Lhasa,valid/Lhasa/09.jpg,09.jpg
+test,Malinois,test/Malinois/02.jpg,02.jpg
+test,Malinois,test/Malinois/03.jpg,03.jpg
+test,Malinois,test/Malinois/06.jpg,06.jpg
+test,Malinois,train/Malinois/022.jpg,022.jpg
+test,Malinois,train/Malinois/026.jpg,026.jpg
+test,Malinois,train/Malinois/028.jpg,028.jpg
+test,Malinois,train/Malinois/037.jpg,037.jpg
+test,Malinois,train/Malinois/039.jpg,039.jpg
+test,Malinois,train/Malinois/040.jpg,040.jpg
+test,Malinois,train/Malinois/044.jpg,044.jpg
+test,Malinois,train/Malinois/049.jpg,049.jpg
+test,Malinois,train/Malinois/062.jpg,062.jpg
+test,Malinois,train/Malinois/063.jpg,063.jpg
+test,Malinois,train/Malinois/076.jpg,076.jpg
+test,Malinois,train/Malinois/081.jpg,081.jpg
+test,Malinois,train/Malinois/099.jpg,099.jpg
+test,Malinois,train/Malinois/100.jpg,100.jpg
+test,Malinois,valid/Malinois/04.jpg,04.jpg
+test,Malinois,valid/Malinois/08.jpg,08.jpg
+test,Maltese,test/Maltese/01.jpg,01.jpg
+test,Maltese,test/Maltese/08.jpg,08.jpg
+test,Maltese,test/Maltese/10.jpg,10.jpg
+test,Maltese,train/Maltese/022.jpg,022.jpg
+test,Maltese,train/Maltese/023.jpg,023.jpg
+test,Maltese,train/Maltese/029.jpg,029.jpg
+test,Maltese,train/Maltese/039.jpg,039.jpg
+test,Maltese,train/Maltese/042.jpg,042.jpg
+test,Maltese,train/Maltese/066.jpg,066.jpg
+test,Maltese,train/Maltese/067.jpg,067.jpg
+test,Maltese,train/Maltese/076.jpg,076.jpg
+test,Maltese,train/Maltese/078.jpg,078.jpg
+test,Maltese,train/Maltese/082.jpg,082.jpg
+test,Maltese,train/Maltese/086.jpg,086.jpg
+test,Maltese,train/Maltese/092.jpg,092.jpg
+test,Maltese,train/Maltese/100.jpg,100.jpg
+test,Maltese,train/Maltese/101.jpg,101.jpg
+test,Maltese,train/Maltese/102.jpg,102.jpg
+test,Maltese,train/Maltese/104.jpg,104.jpg
+test,Maltese,train/Maltese/108.jpg,108.jpg
+test,Maltese,train/Maltese/116.jpg,116.jpg
+test,Maltese,train/Maltese/127.jpg,127.jpg
+test,Mex Hairless,train/Mex Hairless/05.jpg,05.jpg
+test,Mex Hairless,train/Mex Hairless/06.jpg,06.jpg
+test,Mex Hairless,train/Mex Hairless/07.jpg,07.jpg
+test,Mex Hairless,train/Mex Hairless/11.jpg,11.jpg
+test,Mex Hairless,train/Mex Hairless/23.jpg,23.jpg
+test,Mex Hairless,train/Mex Hairless/26.jpg,26.jpg
+test,Mex Hairless,train/Mex Hairless/40.jpg,40.jpg
+test,Mex Hairless,train/Mex Hairless/52.jpg,52.jpg
+test,Mex Hairless,train/Mex Hairless/56.jpg,56.jpg
+test,Mex Hairless,train/Mex Hairless/58.jpg,58.jpg
+test,Mex Hairless,train/Mex Hairless/61.jpg,61.jpg
+test,Mex Hairless,train/Mex Hairless/73.jpg,73.jpg
+test,Mex Hairless,train/Mex Hairless/81.jpg,81.jpg
+test,Mex Hairless,train/Mex Hairless/86.jpg,86.jpg
+test,Mex Hairless,train/Mex Hairless/89.jpg,89.jpg
+test,Mex Hairless,train/Mex Hairless/92.jpg,92.jpg
+test,Mex Hairless,train/Mex Hairless/93.jpg,93.jpg
+test,Mex Hairless,valid/Mex Hairless/06.jpg,06.jpg
+test,Newfoundland,test/Newfoundland/01.jpg,01.jpg
+test,Newfoundland,test/Newfoundland/06.jpg,06.jpg
+test,Newfoundland,train/Newfoundland/04.jpg,04.jpg
+test,Newfoundland,train/Newfoundland/25.jpg,25.jpg
+test,Newfoundland,train/Newfoundland/33.jpg,33.jpg
+test,Newfoundland,train/Newfoundland/43.jpg,43.jpg
+test,Newfoundland,train/Newfoundland/50.jpg,50.jpg
+test,Newfoundland,train/Newfoundland/52.jpg,52.jpg
+test,Newfoundland,train/Newfoundland/69.jpg,69.jpg
+test,Newfoundland,train/Newfoundland/74.jpg,74.jpg
+test,Newfoundland,train/Newfoundland/78.jpg,78.jpg
+test,Newfoundland,valid/Newfoundland/03.jpg,03.jpg
+test,Newfoundland,valid/Newfoundland/06.jpg,06.jpg
+test,Newfoundland,valid/Newfoundland/09.jpg,09.jpg
+test,Pekinese,test/Pekinese/05.jpg,05.jpg
+test,Pekinese,train/Pekinese/004.jpg,004.jpg
+test,Pekinese,train/Pekinese/006.jpg,006.jpg
+test,Pekinese,train/Pekinese/020.jpg,020.jpg
+test,Pekinese,train/Pekinese/021.jpg,021.jpg
+test,Pekinese,train/Pekinese/026.jpg,026.jpg
+test,Pekinese,train/Pekinese/028.jpg,028.jpg
+test,Pekinese,train/Pekinese/032.jpg,032.jpg
+test,Pekinese,train/Pekinese/035.jpg,035.jpg
+test,Pekinese,train/Pekinese/036.jpg,036.jpg
+test,Pekinese,train/Pekinese/038.jpg,038.jpg
+test,Pekinese,train/Pekinese/039.jpg,039.jpg
+test,Pekinese,train/Pekinese/054.jpg,054.jpg
+test,Pekinese,train/Pekinese/071.jpg,071.jpg
+test,Pekinese,train/Pekinese/080.jpg,080.jpg
+test,Pekinese,train/Pekinese/085.jpg,085.jpg
+test,Pekinese,train/Pekinese/087.jpg,087.jpg
+test,Pekinese,train/Pekinese/103.jpg,103.jpg
+test,Pit Bull,test/Pit Bull/03.jpg,03.jpg
+test,Pit Bull,train/Pit Bull/003.jpg,003.jpg
+test,Pit Bull,train/Pit Bull/005.jpg,005.jpg
+test,Pit Bull,train/Pit Bull/010.jpg,010.jpg
+test,Pit Bull,train/Pit Bull/023.jpg,023.jpg
+test,Pit Bull,train/Pit Bull/037.jpg,037.jpg
+test,Pit Bull,train/Pit Bull/048.jpg,048.jpg
+test,Pit Bull,train/Pit Bull/059.jpg,059.jpg
+test,Pit Bull,train/Pit Bull/075.jpg,075.jpg
+test,Pit Bull,train/Pit Bull/083.jpg,083.jpg
+test,Pit Bull,train/Pit Bull/094.jpg,094.jpg
+test,Pit Bull,train/Pit Bull/097.jpg,097.jpg
+test,Pit Bull,train/Pit Bull/107.jpg,107.jpg
+test,Pit Bull,train/Pit Bull/108.jpg,108.jpg
+test,Pit Bull,train/Pit Bull/110.jpg,110.jpg
+test,Pit Bull,train/Pit Bull/114.jpg,114.jpg
+test,Pit Bull,train/Pit Bull/118.jpg,118.jpg
+test,Pit Bull,train/Pit Bull/120.jpg,120.jpg
+test,Pit Bull,train/Pit Bull/121.jpg,121.jpg
+test,Pit Bull,train/Pit Bull/123.jpg,123.jpg
+test,Pit Bull,train/Pit Bull/129.jpg,129.jpg
+test,Pit Bull,valid/Pit Bull/09.jpg,09.jpg
+test,Pomeranian,test/Pomeranian/01.jpg,01.jpg
+test,Pomeranian,train/Pomeranian/010.jpg,010.jpg
+test,Pomeranian,train/Pomeranian/013.jpg,013.jpg
+test,Pomeranian,train/Pomeranian/015.jpg,015.jpg
+test,Pomeranian,train/Pomeranian/020.jpg,020.jpg
+test,Pomeranian,train/Pomeranian/029.jpg,029.jpg
+test,Pomeranian,train/Pomeranian/036.jpg,036.jpg
+test,Pomeranian,train/Pomeranian/047.jpg,047.jpg
+test,Pomeranian,train/Pomeranian/061.jpg,061.jpg
+test,Pomeranian,train/Pomeranian/068.jpg,068.jpg
+test,Pomeranian,train/Pomeranian/069.jpg,069.jpg
+test,Pomeranian,train/Pomeranian/074.jpg,074.jpg
+test,Pomeranian,train/Pomeranian/077.jpg,077.jpg
+test,Pomeranian,train/Pomeranian/081.jpg,081.jpg
+test,Pomeranian,train/Pomeranian/094.jpg,094.jpg
+test,Pomeranian,train/Pomeranian/106.jpg,106.jpg
+test,Pomeranian,train/Pomeranian/107.jpg,107.jpg
+test,Pomeranian,train/Pomeranian/114.jpg,114.jpg
+test,Pomeranian,train/Pomeranian/116.jpg,116.jpg
+test,Pomeranian,train/Pomeranian/134.jpg,134.jpg
+test,Pomeranian,train/Pomeranian/135.jpg,135.jpg
+test,Pomeranian,train/Pomeranian/142.jpg,142.jpg
+test,Pomeranian,train/Pomeranian/144.jpg,144.jpg
+test,Pomeranian,valid/Pomeranian/04.jpg,04.jpg
+test,Pomeranian,valid/Pomeranian/10.jpg,10.jpg
+test,Poodle,train/Poodle/005.jpg,005.jpg
+test,Poodle,train/Poodle/012.jpg,012.jpg
+test,Poodle,train/Poodle/014.jpg,014.jpg
+test,Poodle,train/Poodle/018.jpg,018.jpg
+test,Poodle,train/Poodle/020.jpg,020.jpg
+test,Poodle,train/Poodle/021.jpg,021.jpg
+test,Poodle,train/Poodle/024.jpg,024.jpg
+test,Poodle,train/Poodle/030.jpg,030.jpg
+test,Poodle,train/Poodle/041.jpg,041.jpg
+test,Poodle,train/Poodle/047.jpg,047.jpg
+test,Poodle,train/Poodle/054.jpg,054.jpg
+test,Poodle,train/Poodle/065.jpg,065.jpg
+test,Poodle,train/Poodle/068.jpg,068.jpg
+test,Poodle,train/Poodle/076.jpg,076.jpg
+test,Poodle,train/Poodle/078.jpg,078.jpg
+test,Poodle,train/Poodle/084.jpg,084.jpg
+test,Poodle,train/Poodle/096.jpg,096.jpg
+test,Poodle,train/Poodle/097.jpg,097.jpg
+test,Poodle,train/Poodle/116.jpg,116.jpg
+test,Poodle,train/Poodle/117.jpg,117.jpg
+test,Pug,test/Pug/10.jpg,10.jpg
+test,Pug,train/Pug/008.jpg,008.jpg
+test,Pug,train/Pug/010.jpg,010.jpg
+test,Pug,train/Pug/017.jpg,017.jpg
+test,Pug,train/Pug/018.jpg,018.jpg
+test,Pug,train/Pug/025.jpg,025.jpg
+test,Pug,train/Pug/029.jpg,029.jpg
+test,Pug,train/Pug/034.jpg,034.jpg
+test,Pug,train/Pug/037.jpg,037.jpg
+test,Pug,train/Pug/054.jpg,054.jpg
+test,Pug,train/Pug/060.jpg,060.jpg
+test,Pug,train/Pug/063.jpg,063.jpg
+test,Pug,train/Pug/064.jpg,064.jpg
+test,Pug,train/Pug/068.jpg,068.jpg
+test,Pug,train/Pug/089.jpg,089.jpg
+test,Pug,train/Pug/091.jpg,091.jpg
+test,Pug,train/Pug/094.jpg,094.jpg
+test,Pug,train/Pug/109.jpg,109.jpg
+test,Pug,train/Pug/122.jpg,122.jpg
+test,Pug,train/Pug/127.jpg,127.jpg
+test,Pug,train/Pug/136.jpg,136.jpg
+test,Pug,train/Pug/141.jpg,141.jpg
+test,Pug,train/Pug/142.jpg,142.jpg
+test,Pug,train/Pug/143.jpg,143.jpg
+test,Pug,valid/Pug/03.jpg,03.jpg
+test,Rhodesian,test/Rhodesian/05.jpg,05.jpg
+test,Rhodesian,test/Rhodesian/10.jpg,10.jpg
+test,Rhodesian,train/Rhodesian/003.jpg,003.jpg
+test,Rhodesian,train/Rhodesian/014.jpg,014.jpg
+test,Rhodesian,train/Rhodesian/019.jpg,019.jpg
+test,Rhodesian,train/Rhodesian/034.jpg,034.jpg
+test,Rhodesian,train/Rhodesian/039.jpg,039.jpg
+test,Rhodesian,train/Rhodesian/042.jpg,042.jpg
+test,Rhodesian,train/Rhodesian/044.jpg,044.jpg
+test,Rhodesian,train/Rhodesian/045.jpg,045.jpg
+test,Rhodesian,train/Rhodesian/049.jpg,049.jpg
+test,Rhodesian,train/Rhodesian/053.jpg,053.jpg
+test,Rhodesian,train/Rhodesian/058.jpg,058.jpg
+test,Rhodesian,train/Rhodesian/083.jpg,083.jpg
+test,Rhodesian,train/Rhodesian/085.jpg,085.jpg
+test,Rhodesian,train/Rhodesian/089.jpg,089.jpg
+test,Rhodesian,train/Rhodesian/090.jpg,090.jpg
+test,Rhodesian,train/Rhodesian/105.jpg,105.jpg
+test,Rhodesian,train/Rhodesian/121.jpg,121.jpg
+test,Rhodesian,valid/Rhodesian/01.jpg,01.jpg
+test,Rhodesian,valid/Rhodesian/03.jpg,03.jpg
+test,Rottweiler,test/Rottweiler/03.jpg,03.jpg
+test,Rottweiler,test/Rottweiler/05.jpg,05.jpg
+test,Rottweiler,test/Rottweiler/06.jpg,06.jpg
+test,Rottweiler,train/Rottweiler/02.jpg,02.jpg
+test,Rottweiler,train/Rottweiler/06.jpg,06.jpg
+test,Rottweiler,train/Rottweiler/16.jpg,16.jpg
+test,Rottweiler,train/Rottweiler/28.jpg,28.jpg
+test,Rottweiler,train/Rottweiler/38.jpg,38.jpg
+test,Rottweiler,train/Rottweiler/49.jpg,49.jpg
+test,Rottweiler,train/Rottweiler/54.jpg,54.jpg
+test,Rottweiler,train/Rottweiler/55.jpg,55.jpg
+test,Rottweiler,train/Rottweiler/60.jpg,60.jpg
+test,Rottweiler,train/Rottweiler/61.jpg,61.jpg
+test,Rottweiler,train/Rottweiler/72.jpg,72.jpg
+test,Rottweiler,train/Rottweiler/78.jpg,78.jpg
+test,Rottweiler,train/Rottweiler/88.jpg,88.jpg
+test,Rottweiler,train/Rottweiler/90.jpg,90.jpg
+test,Rottweiler,train/Rottweiler/93.jpg,93.jpg
+test,Saint Bernard,test/Saint Bernard/02.jpg,02.jpg
+test,Saint Bernard,test/Saint Bernard/08.jpg,08.jpg
+test,Saint Bernard,train/Saint Bernard/03.jpg,03.jpg
+test,Saint Bernard,train/Saint Bernard/20.jpg,20.jpg
+test,Saint Bernard,train/Saint Bernard/24.jpg,24.jpg
+test,Saint Bernard,train/Saint Bernard/30.jpg,30.jpg
+test,Saint Bernard,train/Saint Bernard/43.jpg,43.jpg
+test,Saint Bernard,train/Saint Bernard/45.jpg,45.jpg
+test,Saint Bernard,train/Saint Bernard/53.jpg,53.jpg
+test,Saint Bernard,train/Saint Bernard/64.jpg,64.jpg
+test,Saint Bernard,train/Saint Bernard/67.jpg,67.jpg
+test,Saint Bernard,train/Saint Bernard/75.jpg,75.jpg
+test,Saint Bernard,train/Saint Bernard/76.jpg,76.jpg
+test,Saint Bernard,valid/Saint Bernard/07.jpg,07.jpg
+test,Saint Bernard,valid/Saint Bernard/09.jpg,09.jpg
+test,Schnauzer,test/Schnauzer/09.jpg,09.jpg
+test,Schnauzer,train/Schnauzer/005.jpg,005.jpg
+test,Schnauzer,train/Schnauzer/006.jpg,006.jpg
+test,Schnauzer,train/Schnauzer/010.jpg,010.jpg
+test,Schnauzer,train/Schnauzer/011.jpg,011.jpg
+test,Schnauzer,train/Schnauzer/020.jpg,020.jpg
+test,Schnauzer,train/Schnauzer/029.jpg,029.jpg
+test,Schnauzer,train/Schnauzer/043.jpg,043.jpg
+test,Schnauzer,train/Schnauzer/052.jpg,052.jpg
+test,Schnauzer,train/Schnauzer/059.jpg,059.jpg
+test,Schnauzer,train/Schnauzer/067.jpg,067.jpg
+test,Schnauzer,train/Schnauzer/074.jpg,074.jpg
+test,Schnauzer,train/Schnauzer/082.jpg,082.jpg
+test,Schnauzer,train/Schnauzer/089.jpg,089.jpg
+test,Schnauzer,train/Schnauzer/090.jpg,090.jpg
+test,Schnauzer,train/Schnauzer/100.jpg,100.jpg
+test,Schnauzer,train/Schnauzer/102.jpg,102.jpg
+test,Schnauzer,valid/Schnauzer/01.jpg,01.jpg
+test,Schnauzer,valid/Schnauzer/03.jpg,03.jpg
+test,Schnauzer,valid/Schnauzer/08.jpg,08.jpg
+test,Scotch Terrier,test/Scotch Terrier/01.jpg,01.jpg
+test,Scotch Terrier,train/Scotch Terrier/014.jpg,014.jpg
+test,Scotch Terrier,train/Scotch Terrier/024.jpg,024.jpg
+test,Scotch Terrier,train/Scotch Terrier/030.jpg,030.jpg
+test,Scotch Terrier,train/Scotch Terrier/031.jpg,031.jpg
+test,Scotch Terrier,train/Scotch Terrier/033.jpg,033.jpg
+test,Scotch Terrier,train/Scotch Terrier/044.jpg,044.jpg
+test,Scotch Terrier,train/Scotch Terrier/064.jpg,064.jpg
+test,Scotch Terrier,train/Scotch Terrier/071.jpg,071.jpg
+test,Scotch Terrier,train/Scotch Terrier/072.jpg,072.jpg
+test,Scotch Terrier,train/Scotch Terrier/073.jpg,073.jpg
+test,Scotch Terrier,train/Scotch Terrier/077.jpg,077.jpg
+test,Scotch Terrier,train/Scotch Terrier/079.jpg,079.jpg
+test,Scotch Terrier,train/Scotch Terrier/081.jpg,081.jpg
+test,Scotch Terrier,train/Scotch Terrier/099.jpg,099.jpg
+test,Scotch Terrier,train/Scotch Terrier/100.jpg,100.jpg
+test,Scotch Terrier,train/Scotch Terrier/114.jpg,114.jpg
+test,Scotch Terrier,train/Scotch Terrier/124.jpg,124.jpg
+test,Scotch Terrier,train/Scotch Terrier/125.jpg,125.jpg
+test,Scotch Terrier,train/Scotch Terrier/136.jpg,136.jpg
+test,Scotch Terrier,train/Scotch Terrier/140.jpg,140.jpg
+test,Scotch Terrier,train/Scotch Terrier/141.jpg,141.jpg
+test,Scotch Terrier,train/Scotch Terrier/143.jpg,143.jpg
+test,Scotch Terrier,train/Scotch Terrier/146.jpg,146.jpg
+test,Scotch Terrier,valid/Scotch Terrier/07.jpg,07.jpg
+test,Shar_Pei,test/Shar_Pei/05.jpg,05.jpg
+test,Shar_Pei,test/Shar_Pei/10.jpg,10.jpg
+test,Shar_Pei,train/Shar_Pei/03.jpg,03.jpg
+test,Shar_Pei,train/Shar_Pei/04.jpg,04.jpg
+test,Shar_Pei,train/Shar_Pei/05.jpg,05.jpg
+test,Shar_Pei,train/Shar_Pei/13.jpg,13.jpg
+test,Shar_Pei,train/Shar_Pei/31.jpg,31.jpg
+test,Shar_Pei,train/Shar_Pei/33.jpg,33.jpg
+test,Shar_Pei,train/Shar_Pei/38.jpg,38.jpg
+test,Shar_Pei,train/Shar_Pei/68.jpg,68.jpg
+test,Shar_Pei,train/Shar_Pei/70.jpg,70.jpg
+test,Shar_Pei,train/Shar_Pei/71.jpg,71.jpg
+test,Shar_Pei,train/Shar_Pei/74.jpg,74.jpg
+test,Shar_Pei,train/Shar_Pei/87.jpg,87.jpg
+test,Shar_Pei,valid/Shar_Pei/03.jpg,03.jpg
+test,Shar_Pei,valid/Shar_Pei/08.jpg,08.jpg
+test,Shar_Pei,valid/Shar_Pei/09.jpg,09.jpg
+test,Shiba Inu,test/Shiba Inu/08.jpg,08.jpg
+test,Shiba Inu,train/Shiba Inu/05.jpg,05.jpg
+test,Shiba Inu,train/Shiba Inu/08.jpg,08.jpg
+test,Shiba Inu,train/Shiba Inu/14.jpg,14.jpg
+test,Shiba Inu,train/Shiba Inu/15.jpg,15.jpg
+test,Shiba Inu,train/Shiba Inu/18.jpg,18.jpg
+test,Shiba Inu,train/Shiba Inu/24.jpg,24.jpg
+test,Shiba Inu,train/Shiba Inu/28.jpg,28.jpg
+test,Shiba Inu,train/Shiba Inu/41.jpg,41.jpg
+test,Shiba Inu,train/Shiba Inu/42.jpg,42.jpg
+test,Shiba Inu,train/Shiba Inu/45.jpg,45.jpg
+test,Shiba Inu,train/Shiba Inu/49.jpg,49.jpg
+test,Shiba Inu,train/Shiba Inu/50.jpg,50.jpg
+test,Shiba Inu,train/Shiba Inu/51.jpg,51.jpg
+test,Shiba Inu,train/Shiba Inu/61.jpg,61.jpg
+test,Shiba Inu,train/Shiba Inu/68.jpg,68.jpg
+test,Shiba Inu,train/Shiba Inu/87.jpg,87.jpg
+test,Shiba Inu,train/Shiba Inu/93.jpg,93.jpg
+test,Shih-Tzu,test/Shih-Tzu/04.jpg,04.jpg
+test,Shih-Tzu,test/Shih-Tzu/07.jpg,07.jpg
+test,Shih-Tzu,train/Shih-Tzu/006.jpg,006.jpg
+test,Shih-Tzu,train/Shih-Tzu/007.jpg,007.jpg
+test,Shih-Tzu,train/Shih-Tzu/008.jpg,008.jpg
+test,Shih-Tzu,train/Shih-Tzu/012.jpg,012.jpg
+test,Shih-Tzu,train/Shih-Tzu/015.jpg,015.jpg
+test,Shih-Tzu,train/Shih-Tzu/027.jpg,027.jpg
+test,Shih-Tzu,train/Shih-Tzu/032.jpg,032.jpg
+test,Shih-Tzu,train/Shih-Tzu/037.jpg,037.jpg
+test,Shih-Tzu,train/Shih-Tzu/045.jpg,045.jpg
+test,Shih-Tzu,train/Shih-Tzu/083.jpg,083.jpg
+test,Shih-Tzu,train/Shih-Tzu/086.jpg,086.jpg
+test,Shih-Tzu,train/Shih-Tzu/096.jpg,096.jpg
+test,Shih-Tzu,train/Shih-Tzu/104.jpg,104.jpg
+test,Shih-Tzu,train/Shih-Tzu/106.jpg,106.jpg
+test,Shih-Tzu,train/Shih-Tzu/123.jpg,123.jpg
+test,Shih-Tzu,train/Shih-Tzu/124.jpg,124.jpg
+test,Shih-Tzu,train/Shih-Tzu/130.jpg,130.jpg
+test,Shih-Tzu,train/Shih-Tzu/137.jpg,137.jpg
+test,Shih-Tzu,train/Shih-Tzu/139.jpg,139.jpg
+test,Shih-Tzu,train/Shih-Tzu/146.jpg,146.jpg
+test,Shih-Tzu,train/Shih-Tzu/152.jpg,152.jpg
+test,Shih-Tzu,train/Shih-Tzu/164.jpg,164.jpg
+test,Shih-Tzu,train/Shih-Tzu/171.jpg,171.jpg
+test,Shih-Tzu,train/Shih-Tzu/184.jpg,184.jpg
+test,Shih-Tzu,train/Shih-Tzu/185.jpg,185.jpg
+test,Shih-Tzu,train/Shih-Tzu/187.jpg,187.jpg
+test,Shih-Tzu,train/Shih-Tzu/189.jpg,189.jpg
+test,Shih-Tzu,valid/Shih-Tzu/01.jpg,01.jpg
+test,Shih-Tzu,valid/Shih-Tzu/05.jpg,05.jpg
+test,Shih-Tzu,valid/Shih-Tzu/06.jpg,06.jpg
+test,Siberian Husky,train/Siberian Husky/06.jpg,06.jpg
+test,Siberian Husky,train/Siberian Husky/09.jpg,09.jpg
+test,Siberian Husky,train/Siberian Husky/23.jpg,23.jpg
+test,Siberian Husky,train/Siberian Husky/24.jpg,24.jpg
+test,Siberian Husky,train/Siberian Husky/27.jpg,27.jpg
+test,Siberian Husky,train/Siberian Husky/41.jpg,41.jpg
+test,Siberian Husky,train/Siberian Husky/49.jpg,49.jpg
+test,Siberian Husky,train/Siberian Husky/50.jpg,50.jpg
+test,Siberian Husky,train/Siberian Husky/51.jpg,51.jpg
+test,Siberian Husky,train/Siberian Husky/61.jpg,61.jpg
+test,Siberian Husky,train/Siberian Husky/62.jpg,62.jpg
+test,Siberian Husky,train/Siberian Husky/70.jpg,70.jpg
+test,Siberian Husky,train/Siberian Husky/73.jpg,73.jpg
+test,Siberian Husky,train/Siberian Husky/74.jpg,74.jpg
+test,Siberian Husky,train/Siberian Husky/79.jpg,79.jpg
+test,Vizsla,train/Vizsla/02.jpg,02.jpg
+test,Vizsla,train/Vizsla/11.jpg,11.jpg
+test,Vizsla,train/Vizsla/12.jpg,12.jpg
+test,Vizsla,train/Vizsla/17.jpg,17.jpg
+test,Vizsla,train/Vizsla/22.jpg,22.jpg
+test,Vizsla,train/Vizsla/25.jpg,25.jpg
+test,Vizsla,train/Vizsla/44.jpg,44.jpg
+test,Vizsla,train/Vizsla/46.jpg,46.jpg
+test,Vizsla,train/Vizsla/50.jpg,50.jpg
+test,Vizsla,train/Vizsla/57.jpg,57.jpg
+test,Vizsla,train/Vizsla/65.jpg,65.jpg
+test,Vizsla,train/Vizsla/66.jpg,66.jpg
+test,Vizsla,valid/Vizsla/05.jpg,05.jpg
+test,Vizsla,valid/Vizsla/07.jpg,07.jpg
+test,Yorkie,test/Yorkie/05.jpg,05.jpg
+test,Yorkie,train/Yorkie/21.jpg,21.jpg
+test,Yorkie,train/Yorkie/23.jpg,23.jpg
+test,Yorkie,train/Yorkie/29.jpg,29.jpg
+test,Yorkie,train/Yorkie/35.jpg,35.jpg
+test,Yorkie,train/Yorkie/36.jpg,36.jpg
+test,Yorkie,train/Yorkie/39.jpg,39.jpg
+test,Yorkie,train/Yorkie/44.jpg,44.jpg
+test,Yorkie,train/Yorkie/46.jpg,46.jpg
+test,Yorkie,train/Yorkie/49.jpg,49.jpg
+test,Yorkie,train/Yorkie/62.jpg,62.jpg
+test,Yorkie,train/Yorkie/68.jpg,68.jpg
+test,Yorkie,train/Yorkie/77.jpg,77.jpg
+test,Yorkie,valid/Yorkie/04.jpg,04.jpg
+test,Yorkie,valid/Yorkie/06.jpg,06.jpg
