@@ -1179,6 +1179,9 @@ if audit_issues.is_empty() and not manifest.is_empty():
 #
 # **Afuera:** flip vertical, rotaciones de 90° y cambios de color/hue fuertes: no ocurren en la
 # realidad y cambian la raza aparente.
+#
+# La grilla **Una foto de entrenamiento con ocho aumentos** aparece en 3.7, después de definir
+# la partición final de entrenamiento.
 
 # %%
 # Augmentation: solo train.
@@ -1285,6 +1288,56 @@ print(
     "proporción: "
     f"{ {row['split']: round(row['imágenes'] / final.height, 3) for row in resumen_splits.iter_rows(named=True)} }"
 )
+
+# %% [markdown]
+# ### Una foto de entrenamiento con ocho aumentos (3.6)
+#
+# Elegimos una foto de Shih-Tzu del manifiesto final `splits/train.csv` por su ruta fija.
+# Aplicamos el pipeline de entrenamiento ocho veces, siempre a partir del original, con una
+# semilla fija y en memoria. Los rótulos indican las operaciones aplicadas en cada caso.
+#
+# La variante 3 invierte la orientación y las variantes 4 y 5 cambian la luz.
+# En todas se distinguen el hocico corto y el pelaje largo que enmarca la cara.
+
+# %%
+preview_source = pl.read_csv(SPLITS_DIR / "train.csv").row(
+    by_predicate=(
+        (pl.col("split") == "train") & (pl.col("path") == "train/Shih-Tzu/112.jpg")
+    ),
+    named=True,
+)
+preview_bgr = cv2.imread(str(DATASET_DIR / preview_source["path"]))
+if preview_bgr is None:
+    raise ValueError(f"No se pudo leer la foto de entrenamiento: {preview_source['path']}")
+
+preview_transform = build_train_transform(image_size=IMAGE_SIZE, seed=3)
+preview_transform.save_applied_params = True
+preview_variants = [preview_transform(image=preview_bgr) for _ in range(8)]
+preview_labels = {
+    "HorizontalFlip": "Volteo horizontal",
+    "Affine": "Afín",
+    "RandomResizedCrop": "Recorte",
+    "RandomBrightnessContrast": "Brillo/contraste",
+    "GaussianBlur": "Desenfoque gaussiano",
+    "MotionBlur": "Desenfoque de movimiento",
+    "GaussNoise": "Ruido",
+}
+
+preview_figure, preview_axes = plt.subplots(3, 3, figsize=(10, 10), layout="constrained")
+preview_axes[0, 0].imshow(bgr_to_rgb(preview_bgr))
+preview_axes[0, 0].set_title("Original")
+for number, variant in enumerate(preview_variants, start=1):
+    ax = preview_axes.flat[number]
+    operations = " · ".join(preview_labels[name] for name, _ in variant["applied_transforms"])
+    ax.imshow(bgr_to_rgb(variant["image"]))
+    ax.set_title(f"Variante {number}\n{operations}", fontsize=9)
+for ax in preview_axes.flat:
+    ax.axis("off")
+preview_figure.suptitle(
+    f"{preview_source['breed']}  |  {preview_source['path']}  |  split final: train"
+)
+plt.show()
+
 
 # %%
 # Equilibramos train con augmentation: cada raza llega a la cantidad de la más numerosa.
