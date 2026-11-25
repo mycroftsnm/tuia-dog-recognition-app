@@ -125,7 +125,11 @@ Servicios disponibles: frontend en `http://localhost:8080`, backend en `http://l
 
 ### 2. Indexá la galería
 
-Con la Etapa 1 implementada y el dataset en `data/dataset`, indexá el split de entrenamiento desde el contenedor del backend:
+Con el dataset en `data/dataset`, ejecutá la notebook de preprocesamiento para generar
+`splits/train_augmented.csv` y las copias aumentadas. Docker Compose monta `splits/` en
+el backend y el indexador usa ese manifiesto para armar la misma galería que la notebook 2.
+
+Indexá la galería desde el contenedor del backend:
 
 ```bash
 docker compose exec backend python /scripts/build_index.py --split train
@@ -238,6 +242,9 @@ docker compose exec backend python /scripts/build_index.py --split train
 # Entrenar y evaluar el clasificador localmente (alternativa a 2-train.ipynb)
 python scripts/train_classifier.py --model resnet18_finetuned
 ```
+
+El indexador agrega registros a la base configurada. Para reconstruir una galería,
+usá un índice vacío.
 
 Con `USE_PGVECTOR=false`, la indexación del split completo es lenta: el JSON se reescribe en cada inserción. Para pruebas rápidas, usen `--limit` (máximo de imágenes por raza).
 
