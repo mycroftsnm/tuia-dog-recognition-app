@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     embedding_dim: int = os.getenv("EMBEDDING_DIM", 512)
 
     # Configuracion de YOLO (Etapa 3)
-    yolo_model: str = os.getenv("YOLO_MODEL", "yolov8n.pt")
+    yolo_model: str = os.getenv("YOLO_MODEL", str(model_path / "yolov8n.pt"))
     yolo_conf_threshold: float = os.getenv("YOLO_CONF_THRESHOLD", 0.25)
     yolo_dog_class_id: int = os.getenv("YOLO_DOG_CLASS_ID", 16)
 

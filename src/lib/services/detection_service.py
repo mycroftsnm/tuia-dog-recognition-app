@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from threading import Lock
 from uuid import uuid4
 
 import cv2
@@ -17,9 +18,7 @@ logger = logging.getLogger(__name__)
 class DetectionService:
     """Etapa 3: pipeline de deteccion y clasificacion.
 
-    Funciones a implementar por el estudiante:
-      - detect_dogs(image)
-      - classify_detected_dog(crop)
+    Funcion pendiente: classify_detected_dog(crop).
 
     La orquestacion (predict: deteccion -> recorte -> clasificacion -> JSON)
     ya esta provista.
@@ -36,6 +35,8 @@ class DetectionService:
         self.yolo_model_name = yolo_model
         self.conf_threshold = conf_threshold
         self.dog_class_id = dog_class_id
+        self._detector = None
+        self._detector_lock = Lock()
 
     @staticmethod
     def _clip_xyxy(
@@ -59,23 +60,34 @@ class DetectionService:
         return image
 
     # ------------------------------------------------------------------
-    # Etapa 3: funciones a implementar
+    # Etapa 3: deteccion y clasificacion
     # ------------------------------------------------------------------
 
     def detect_dogs(self, image: np.ndarray) -> list[tuple[tuple[int, int, int, int], float]]:
-        """
-        Detecta todos los perros presentes en la imagen usando un modelo YOLO
-        pre-entrenado (ej: YOLOv8n via ultralytics). No es necesario entrenar
-        el detector.
+        """Detecta perros en una imagen BGR uint8 y devuelve cajas en pixeles y confianza."""
+        with self._detector_lock:
+            if self._detector is None:
+                from ultralytics import YOLO
 
-        Sugerencias:
-          - self.yolo_model_name, self.conf_threshold y self.dog_class_id
-            (clase 'dog' = 16 en COCO) vienen de la configuracion (.env).
-          - Debe funcionar con un perro, multiples perros y escenas complejas.
+                self._detector = YOLO(self.yolo_model_name)
 
-        Retorna una lista de ((x1, y1, x2, y2), confidence) en pixeles.
-        """
-        raise NotImplementedError("Etapa 3: implementar detect_dogs")
+            result = self._detector.predict(
+                source=image,
+                conf=self.conf_threshold,
+                classes=[self.dog_class_id],
+                verbose=False,
+            )[0]
+
+        boxes = result.boxes
+        if boxes is None:
+            return []
+
+        height, width = image.shape[:2]
+        detections = []
+        for coords, confidence in zip(boxes.xyxy.tolist(), boxes.conf.tolist()):
+            box = self._clip_xyxy(*(int(value) for value in coords), height, width)
+            detections.append((box, float(confidence)))
+        return detections
 
     def classify_detected_dog(self, crop: np.ndarray) -> tuple[str, float]:
         """
