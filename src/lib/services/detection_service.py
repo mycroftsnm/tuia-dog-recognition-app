@@ -8,7 +8,10 @@ from uuid import uuid4
 
 import cv2
 import numpy as np
+import onnxruntime
+import torch
 
+from lib.image_pipeline import preprocess, to_batch
 from lib.schemas import ClassifyResult, DetectResult, DogDetection
 from lib.services.classifier_service import ClassifierService
 
@@ -16,13 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class DetectionService:
-    """Etapa 3: pipeline de deteccion y clasificacion.
-
-    Funcion pendiente: classify_detected_dog(crop).
-
-    La orquestacion (predict: deteccion -> recorte -> clasificacion -> JSON)
-    ya esta provista.
-    """
+    """Etapa 3: deteccion, recorte y clasificacion de perros."""
 
     def __init__(
         self,
@@ -90,13 +87,42 @@ class DetectionService:
         return detections
 
     def classify_detected_dog(self, crop: np.ndarray) -> tuple[str, float]:
-        """
-        Clasifica la raza del recorte de un perro detectado usando el modelo
-        entrenado en la Etapa 2 (self.classifier.load_model()).
+        """Devuelve la raza y su probabilidad para un recorte BGR uint8.
 
-        El recorte llega en BGR (OpenCV). Retorna (raza, score).
+        Los modelos ONNX guardan sus razas como una lista JSON en la metadata
+        `class_names`.
         """
-        raise NotImplementedError("Etapa 3: implementar classify_detected_dog")
+        model = self.classifier.load_model()
+        batch = to_batch(preprocess(crop, self.classifier.image_size))
+
+        if isinstance(model, onnxruntime.InferenceSession):
+            metadata = model.get_modelmeta().custom_metadata_map
+            try:
+                class_names = json.loads(metadata["class_names"])
+            except (KeyError, json.JSONDecodeError) as exc:
+                raise ValueError(
+                    "ONNX metadata must contain 'class_names' as a JSON list of breeds."
+                ) from exc
+            input_name = model.get_inputs()[0].name
+            logits = torch.from_numpy(model.run(None, {input_name: batch})[0])
+        else:
+            class_names = getattr(model, "class_names", None)
+            inputs = torch.from_numpy(batch)
+            device = next(model.parameters(), inputs).device
+            model.eval()
+            with torch.no_grad():
+                logits = model(inputs.to(device))
+
+        if (
+            not isinstance(class_names, (list, tuple))
+            or not class_names
+            or logits.shape != (1, len(class_names))
+            or not all(isinstance(breed, str) for breed in class_names)
+        ):
+            raise ValueError("Checkpoint 'class_names' must provide one breed per logit.")
+
+        score, index = logits[0].softmax(dim=0).max(dim=0)
+        return class_names[index.item()], score.item()
 
     # ------------------------------------------------------------------
     # Orquestacion provista
