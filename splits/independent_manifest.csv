@@ -1,0 +1,3 @@
+breed,path,filename,source,license,has_dog,multiple_dogs,author,license_url
+Poodle,independent/Poodle/Poodle.jpg,Poodle.jpg,https://commons.wikimedia.org/wiki/File:Poodle.jpg,CC0 1.0,true,false,Guanaco,https://creativecommons.org/publicdomain/zero/1.0/
+Poodle,independent/Poodle/Standard_black_Poodle.jpg,Standard_black_Poodle.jpg,https://commons.wikimedia.org/wiki/File:Standard_black_Poodle.jpg,CC BY-SA 3.0,true,false,Dcac410,https://creativecommons.org/licenses/by-sa/3.0/
