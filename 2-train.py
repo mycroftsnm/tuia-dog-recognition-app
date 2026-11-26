@@ -567,9 +567,18 @@ classifier.set_active_model("resnet18_finetuned")
 classifier.train_classifier()
 
 # %%
-history_path = settings.output_path / "history_resnet18_finetuned.json"
-history = pl.DataFrame(json.loads(history_path.read_text(encoding="utf-8"))["epochs"])
-mostrar(history)
+def load_history(model_name: str) -> pl.DataFrame | None:
+    """Historial de `train_classifier`, o None si se reutilizó el checkpoint y no hay JSON."""
+    path = settings.output_path / f"history_{model_name}.json"
+    if not path.is_file():
+        print(f"Sin historial para {model_name}: se reutilizó el checkpoint existente.")
+        return None
+    return pl.DataFrame(json.loads(path.read_text(encoding="utf-8"))["epochs"])
+
+
+history = load_history("resnet18_finetuned")
+if history is not None:
+    mostrar(history)
 
 # %%
 metrics_a = classifier.evaluate_classifier()
@@ -640,7 +649,8 @@ def plot_training(history: pl.DataFrame, model: str) -> None:
     display(loss_chart | accuracy_chart)
 
 
-plot_training(history, "Modelo A")
+if history is not None:
+    plot_training(history, "Modelo A")
 
 # %%
 labels = evaluation_a["class_names"]
