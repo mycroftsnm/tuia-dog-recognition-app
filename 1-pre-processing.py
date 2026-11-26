@@ -1567,6 +1567,180 @@ display(pd.DataFrame([{
 # así que las diferencias de escala y encuadre reducen la correlación global.
 # La búsqueda local recupera el control sin agregarlo a mano.
 
+# %% [markdown]
+# #### Selección de candidatos
+#
+# Se buscan pares entre todos los orígenes de cada cruce, sin restringir la raza.
+# La primera partición del cruce se usa como índice. Un par puede entrar por dos vías.
+#
+# - **Estructura local.** SIFT (128 puntos principales por foto a 224 × 224).
+#   Cada descriptor de la segunda partición busca sus 10 vecinos aproximados en
+#   FLANN (4 árboles, 40 comprobaciones). Cada punto da hasta un voto por foto
+#   vecina a distancia L2 ≤ 240. Desde 5 votos se verifica el par con distancias
+#   SIFT exactas (razón de Lowe < 0,78 y correspondencias únicas) y un ajuste
+#   de similitud por RANSAC con tolerancia de 3 px. Se requieren 6 puntos alineados
+#   y que la envolvente convexa ocupe al menos el 0,6 % de cada imagen
+#   (fracción de área redondeada a cuatro decimales).
+# - **Apariencia global.** Correlación ≥ 0,955 en gris a 12 × 12, comparando una
+#   imagen completa con la otra completa o con uno de sus nueve recortes al 80 %,
+#   en ambos sentidos. Esta vía también admite fotos con poca textura.
+#
+# Una coincidencia exacta de ruta o de SHA-256 también entra como candidata
+# y se cuenta en la verificación de fuga.
+#
+# Los conteos son un **mínimo observado**. FLANN aproxima vecinos y el ajuste
+# requiere textura compartida. Los recortes globales se limitan a una cuadrícula
+# fija. Pueden escapar reflejos, recortes fuertes y tomas con poco solapamiento
+# o cambios grandes de pose. El diagnóstico cubre cruces de los tres manifiestos,
+# por lo que quedan fuera los pares internos y el conjunto independiente.
+
+# %%
+class AuditPhoto(NamedTuple):
+    points: np.ndarray
+    descriptors: np.ndarray | None
+    views: np.ndarray
+    sha256: str
+
+
+audit_workers = local()
+AUDIT_SIZE = 224
+
+
+def audit_describe(path):
+    if not hasattr(audit_workers, "sift"):
+        audit_workers.sift = cv2.SIFT_create(nfeatures=128)
+    raw = (DATASET_DIR / path).read_bytes()
+    image = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+    if image is None:
+        raise ValueError(f"No se pudo leer {path}")
+    gray = cv2.resize(image, (AUDIT_SIZE, AUDIT_SIZE), interpolation=cv2.INTER_AREA)
+    points, descriptors = audit_workers.sift.detectAndCompute(gray, None)
+    points = np.float32([point.pt for point in points])
+
+    crop = round(AUDIT_SIZE * 0.8)
+    margin = AUDIT_SIZE - crop
+    offsets = (0, margin // 2, margin)
+    crops = [gray[y:y + crop, x:x + crop] for y in offsets for x in offsets]
+    views = np.float32([
+        cv2.resize(view, (12, 12), interpolation=cv2.INTER_AREA).ravel()
+        for view in [gray, *crops]
+    ])
+    views -= views.mean(axis=1, keepdims=True)
+    views /= np.maximum(np.linalg.norm(views, axis=1, keepdims=True), 1)
+    return AuditPhoto(points, descriptors, views, hashlib.sha256(raw).hexdigest())
+
+
+def audit_global_candidates(database, queries):
+    left, right = (np.stack([photo.views for photo in photos]) for photos in (database, queries))
+    n_images, n_views, dimensions = left.shape
+    all_left = left.reshape(-1, dimensions)
+    with threadpool_limits(limits=4, user_api="blas"):
+        for start in range(0, len(right), 64):
+            batch = right[start:start + 64]
+            cropped_left = (all_left @ batch[:, 0, :].T).reshape(n_images, n_views, -1)
+            cropped_right = (left[:, 0, :] @ batch.reshape(-1, dimensions).T).reshape(
+                n_images, -1, n_views
+            )
+            scores = np.maximum(cropped_left.max(axis=1), cropped_right.max(axis=2))
+            for i, j in zip(*np.nonzero(scores >= 0.955)):
+                yield (int(i), start + int(j)), float(scores[i, j])
+
+
+def audit_sift_shortlist(database, queries):
+    indexed = [photo.descriptors for photo in database if photo.descriptors is not None]
+    if not indexed:
+        return
+    vectors = np.concatenate(indexed)
+    owners = np.repeat(np.arange(len(database)), [len(photo.points) for photo in database])
+    index = cv2.flann_Index(vectors, dict(algorithm=1, trees=4))
+    for j, photo in enumerate(queries):
+        if photo.descriptors is None:
+            continue
+        hits, distances = index.knnSearch(photo.descriptors, min(10, len(vectors)), params=dict(checks=40))
+        votes = Counter()
+        for neighbors in np.where(distances <= 240**2, owners[hits], -1):
+            votes.update(set(neighbors) - {-1})
+        for i, n_votes in votes.items():
+            if n_votes >= 5:
+                yield int(i), j
+
+
+def audit_local_fit(left, right):
+    if min(len(left.points), len(right.points)) < 2:
+        return 0, 0., None
+    matches = [
+        first for first, second in cv2.BFMatcher().knnMatch(right.descriptors, left.descriptors, k=2)
+        if first.distance < 0.78 * second.distance
+    ]
+    unique = {match.trainIdx: match for match in sorted(matches, key=lambda match: -match.distance)}
+    if len(unique) < 4:
+        return 0, 0., None
+    src = np.float32([right.points[match.queryIdx] for match in unique.values()])
+    dst = np.float32([left.points[match.trainIdx] for match in unique.values()])
+    matrix, mask = cv2.estimateAffinePartial2D(
+        src, dst, method=cv2.RANSAC, ransacReprojThreshold=3, maxIters=1000
+    )
+    if matrix is None:
+        return 0, 0., None
+    inliers = mask.ravel().astype(bool)
+    area = min(cv2.contourArea(cv2.convexHull(points[inliers])) for points in (src, dst))
+    return int(inliers.sum()), round(area / AUDIT_SIZE**2, 4), float(np.hypot(*matrix[:, 0]))
+
+
+def audit_search(paths):
+    all_paths = sorted(set().union(*paths.values()))
+    previous_threads = cv2.getNumThreads()
+    cv2.setNumThreads(1)
+    cv2.setRNGSeed(SEED)
+    candidates = []
+    checks = []
+    try:
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            photos = dict(zip(all_paths, pool.map(audit_describe, all_paths)))
+        for left_split, right_split in audit_crosses:
+            left_paths, right_paths = paths[left_split], paths[right_split]
+            left = [photos[path] for path in left_paths]
+            right = [photos[path] for path in right_paths]
+            left_sha = defaultdict(list)
+            for i, photo in enumerate(left):
+                left_sha[photo.sha256].append(i)
+            exact = {
+                (i, j)
+                for j, photo in enumerate(right)
+                for i in left_sha.get(photo.sha256, ())
+            }
+            global_matches = dict(audit_global_candidates(left, right))
+            local_shortlist = set(audit_sift_shortlist(left, right))
+            visual = global_matches.keys() | local_shortlist
+            cross = f"{left_split}–{right_split}"
+            checks.append({
+                "Cruce": cross,
+                "Pares posibles": len(left) * len(right),
+                "Rutas compartidas": len(set(left_paths) & set(right_paths)),
+                "Pares SHA-256 idénticos": len(exact),
+                "Preselección visual": len(visual),
+            })
+            for i, j in sorted(visual | exact):
+                inliers, area, scale = audit_local_fit(left[i], right[j])
+                if (inliers >= 6 and area >= 0.006) or (i, j) in global_matches or (i, j) in exact:
+                    candidates.append({
+                        "Cruce": cross,
+                        "Ruta A": left_paths[i],
+                        "Ruta B": right_paths[j],
+                        "Puntos alineados": inliers,
+                        "Área SIFT": area,
+                        "Escala B → A": round(scale, 3) if scale is not None else None,
+                        "Correlación global": round(global_matches.get((i, j), np.nan), 4),
+                        "SHA-256 igual": (i, j) in exact,
+                    })
+    finally:
+        cv2.setNumThreads(previous_threads)
+    return pd.DataFrame(candidates), pd.DataFrame(checks)
+
+
+audit_candidates, audit_checks = audit_search(audit_paths)
+display(audit_checks)
+
 
 # %% [markdown]
 # ## 3.8 Licencias y uso de imágenes
