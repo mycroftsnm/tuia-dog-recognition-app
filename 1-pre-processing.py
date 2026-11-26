@@ -1924,6 +1924,121 @@ display(audit_summary)
 # de ese cruce. La tabla de exclusiones cuenta cada foto una vez entre todos los
 # cruces y usa la componente completa.
 
+# %%
+import re
+
+
+def audit_show_table(table):
+    markup = table.to_html(index=False, na_rep="—")
+    # Una línea por fila de datos en el JSON de la notebook.
+    markup = re.sub(r">[ \t]*\n[ \t]*<(?=(?:td|th)\b|/tr>)", "><", markup)
+    display(HTML(f'<div style="max-height:460px;overflow:auto">{markup}</div>'))
+
+
+audit_review_sorted = audit_review.sort_values(["Cruce", "Decisión", "Grupo", "Ruta A", "Ruta B"])
+for left_split, right_split in audit_crosses:
+    cross = f"{left_split}–{right_split}"
+    display(HTML(f"<h5>{cross}</h5>"))
+    audit_show_table(audit_review_sorted.loc[audit_review_sorted["Cruce"] == cross])
+
+# %%
+# Cada recuadro muestra las dos fotos de un par.
+audit_grid_examples = [
+    ('train/Golden Retriever/048.jpg', 'train/Labrador/102.jpg'),
+    ('train/Pug/071.jpg', 'train/Pug/037.jpg'),
+    ('train/Airedale/109.jpg', 'train/Airedale/064.jpg'),
+    ('train/Bichon Frise/046.jpg', 'train/Bichon Frise/067.jpg'),
+    ('test/Boston Terrier/03.jpg', 'valid/Boston Terrier/03.jpg'),
+    ('train/Labrador/137.jpg', 'train/Labrador/131.jpg'),
+]
+figure = plt.figure(figsize=(11, 9), layout="constrained")
+panels = figure.subfigures(3, 2)
+for number, (panel, (path_a, path_b)) in enumerate(
+    zip(panels.flat, audit_grid_examples, strict=True), 1
+):
+    row = audit_review.loc[(audit_review["Ruta A"] == path_a) & (audit_review["Ruta B"] == path_b)].iloc[0]
+    panel.suptitle(f"Ejemplo {number}", fontsize=10)
+    for ax, split, path in zip(panel.subplots(1, 2), row["Cruce"].split("–"), (path_a, path_b), strict=True):
+        with Image.open(DATASET_DIR / path) as photo:
+            ax.imshow(photo.convert("RGB"))
+        ax.set_title(f"{split} final\n{path}", fontsize=8)
+        ax.axis("off")
+plt.show()
+
+# %% [markdown]
+# **Conclusiones de los ejemplos**
+#
+# 1. **Confirmado · Golden Retriever y Labrador.** Coinciden los rasgos del perro, la posición de la lengua y el fondo. Las fotos tienen recortes y etiquetas distintos.
+# 2. **Descartado · Pug.** Cambian el contorno de los ojos, las orejas y los pliegues del hocico.
+# 3. **Confirmado · Airedale.** Coinciden el perro y los detalles del jardín, incluido el muro de piedra. Cambia el encuadre.
+# 4. **Descartado · Bichon Frise.** El corte del pelo es parecido. La cara, la postura y el fondo difieren.
+# 5. **Confirmado · Boston Terrier.** Coinciden la postura y las marcas del cachorro. Una versión tiene el fondo reemplazado por blanco.
+# 6. **Descartado · Labrador.** Un perro está de pie y el otro recostado. El parecido se concentra en el retrato.
+
+# %%
+audit_exclusions = []
+for group, members in audit_groups.items():
+    member_splits = {split for split, _ in members}
+    for split, path in sorted(members):
+        reference_splits = {"train"} if split == "valid" else {"train", "valid"}
+        overlap = reference_splits & member_splits
+        if split in {"valid", "test"} and overlap:
+            audit_exclusions.append({
+                "Partición": split,
+                "Ruta": path,
+                "Grupo": group,
+                "Solapa con": ", ".join(sorted(overlap)),
+            })
+
+audit_exclusion_table = pd.DataFrame(audit_exclusions).sort_values(["Partición", "Grupo", "Ruta"])
+audit_doubtful = audit_review.loc[audit_review["Decisión"].eq("Dudoso")]
+audit_exclusion_rows = []
+for split in ("valid", "test"):
+    excluded = set(audit_exclusion_table.loc[audit_exclusion_table["Partición"] == split, "Ruta"])
+    additional = audit_paths_in_cross(audit_doubtful, split) - excluded
+    total = len(audit_paths[split])
+    audit_exclusion_rows.append({
+        "Partición": split,
+        "Originales": total,
+        "Excluir por fuga confirmada": len(excluded),
+        "Dudosas adicionales": len(additional),
+        "Disponibles tras exclusiones confirmadas": total - len(excluded),
+    })
+audit_exclusion_counts = pd.DataFrame(audit_exclusion_rows)
+print(f"Grupos confirmados distintos entre los tres cruces: {len(audit_groups)}")
+display(audit_exclusion_counts)
+audit_show_table(audit_exclusion_table)
+
+# %% [markdown]
+# #### Siguiente corrida de evaluación
+#
+# La segunda revisión confirmó los siete pares que estaban en duda. Los cambios
+# de encuadre, proporciones, nitidez y fondo son compatibles con ediciones de la
+# foto de origen. De los 405 candidatos, quedan **396 pares confirmados** en
+# **296 grupos** y **9 descartados**. La columna de dudosos queda en cero para
+# los pares encontrados por esta búsqueda.
+#
+# Con los checkpoints existentes, excluir de validación los miembros de grupos con
+# train y de test los miembros de grupos con train o con la validación que se usó
+# para seleccionar los checkpoints. La tabla anterior identifica **151 fotos de
+# valid y 166 de test** para excluir. Quedan **1.228 y 1.213 consultas**,
+# respectivamente. Para una nueva partición, asignar cada grupo completo a un solo
+# split, revisar las etiquetas discordantes y mantener los aumentos con su foto
+# de origen.
+#
+# - **Baseline de similitud, sección 3 de 2-train.ipynb.** Recalibrar el rechazo
+#   para cosine y l2 y rehacer la tabla de calibración (K=5 y K=10) con la
+#   validación filtrada. Recalcular NDCG@10,
+#   precision@10, accuracy de raza y tasa de unknown de test, sus distribuciones
+#   y ejemplos, incluido el acierto Afghan. Aplicar el umbral recalibrado a las
+#   predicciones del conjunto independiente. Si se reagrupa la galería, volver a
+#   calcular también los rankings de ese conjunto con la galería corregida.
+# - **Modelos A y B, secciones 6 y 7.** Volver a medir accuracy, precision,
+#   recall, specificity y F1 macro, y actualizar matrices de confusión, métricas
+#   por raza y ejemplos de error sobre las mismas consultas filtradas. Tratar las
+#   curvas originales de validación como historial de la selección ya realizada.
+#   Una selección de checkpoint sobre una validación limpia requiere reagrupar
+#   antes de un nuevo entrenamiento.
 
 # %% [markdown]
 # ## 3.8 Licencias y uso de imágenes
