@@ -1361,13 +1361,15 @@ display(Markdown(f"**La validación favorece `{yolo_elegido:.2f}`.**"))
 # %% [markdown]
 # ### Comprobación independiente
 #
-# El manifiesto tiene 28 filas. Se agrupan por `path` para procesar una sola vez `escena_001.jpg`, que tiene una fila por perro. Quedan 27 imágenes únicas. Se comparan los tres umbrales con el mismo criterio visual y se informa por separado el resultado de las fotos individuales, la escena y el gato.
+# Se agrupan las filas por `path` para procesar cada foto una sola vez. La evaluación visual usa solo imágenes con anotaciones en `YOLO_REVISION`; las rutas nuevas se informan como pendientes hasta que se revisen las detecciones. Los resultados no representan todavía todo el manifiesto.
 
 # %%
 yolo_tipos = {
     "un_perro": "Fotos individuales",
     "varios_perros": "Escena con dos perros",
     "gato": "Gato",
+    "perro_contexto": "Perro en contexto",
+    "objeto_sin_animal": "Objeto sin animal",
 }
 yolo_rutas_independientes = {}
 for yolo_fila in yolo_leer_manifiesto("independent_manifest.csv"):
@@ -1376,7 +1378,12 @@ for yolo_fila in yolo_leer_manifiesto("independent_manifest.csv"):
     if yolo_rutas_independientes.setdefault(yolo_ruta, yolo_tipo) != yolo_tipo:
         raise ValueError(f"Tipos de escena distintos para {yolo_ruta}.")
 
-yolo_independiente = yolo_evaluar(dict(sorted(yolo_rutas_independientes.items())))
+yolo_pendientes = sorted(set(yolo_rutas_independientes) - set(YOLO_REVISION))
+print(f"Fotos independientes pendientes de revisión visual: {len(yolo_pendientes)}")
+for yolo_ruta in yolo_pendientes:
+    print(f"  {yolo_ruta}")
+yolo_revisadas = {ruta: tipo for ruta, tipo in sorted(yolo_rutas_independientes.items()) if ruta in YOLO_REVISION}
+yolo_independiente = yolo_evaluar(yolo_revisadas)
 yolo_totales_independiente = (
     yolo_independiente.groupby(["Tipo de caso", "Umbral"], sort=False)[YOLO_CONTEOS].sum()
 )
