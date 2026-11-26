@@ -186,268 +186,332 @@ mostrar(resumen_splits)
 # %% [markdown]
 # ## 3. Etapa 1 — Evaluación de la búsqueda por similitud (baseline)
 #
-# Embeddings del ResNet18 preentrenado (sin la capa final, L2-normalizados). Para cada consulta
-# de `test` se recuperan los 10 vecinos más similares de la galería y se calcula:
+# Sección 4.3. Se usa el ResNet18 preentrenado de `SimilarityService`, con
+# embeddings L2-normalizados. La galería es `splits/train_augmented.csv`, el manifiesto que
+# indexa la app. `valid` calibra el rechazo. La evaluación final usa `test` y las fotos de
+# un solo perro de `splits/independent_manifest.csv` con su raza etiquetada.
+# Se cruzan las rutas locales y los identificadores de origen de cada consulta con las
+# rutas indexadas y las rutas originales de las copias aumentadas. Se verifica también
+# la coincidencia exacta de archivos por SHA-256.
 #
-# - **NDCG@10** con relevancia binaria (mismo perro/raza) y `n_relevant` = imágenes de esa raza
-#   en la galería.
-# - **precision@10** y **accuracy** de la raza predicha por voto ponderado por score.
-#
-# `NDCG@10 = DCG@10 / IDCG@10` con relevancia binaria (`rel_i = 1` si el vecino es de la misma raza)
-# y `IDCG` calculado con `n_relevant` = imágenes de esa raza **en la galería** (no reordenando el
-# resultado devuelto). `unknown` es la fracción de consultas cuyo mejor score queda debajo de
-# `SIMILARITY_THRESHOLD`.
-#
-# La evaluación no usa la base vectorial: alcanza con el extractor y una matriz de similitud.
+# Para repetir la corrida completa, se debe abrir la notebook desde la raíz del repo con el kernel de
+# la `.venv` y `LIMIT_PER_CLASS=0`. Luego, ejecutar las celdas de configuración y splits de las
+# secciones 1 y 2, y todas las celdas de esta sección hasta los ejemplos.
 
 # %%
-# `store=None`: acá solo se usa el extractor de embeddings, no la base.
-similarity = build_similarity(settings, store=None)
+from hashlib import sha256
+from io import BytesIO
+from textwrap import fill
+
+from IPython.display import Image, Markdown
+from matplotlib.figure import Figure
+
+BASELINE_METRICS = ("cosine", "l2")
+BASELINE_K = 10
+gallery_df = train_df.sort("breed", maintain_order=True)
+independent_df = load_split("independent_manifest").filter(pl.col("scene_type") == "un_perro")
 
 
-def embed_rows(
-    rows: pl.DataFrame, batch_size: int = 32, label: str = ""
-) -> tuple[np.ndarray, list[str]]:
-    """Embeddings L2-normalizados de un manifiesto, en lotes (sin cargar todo en memoria)."""
-    embeddings: list[list[float]] = []
-    breeds: list[str] = []
-    total = rows.height
-    for start in range(0, total, batch_size):
-        chunk = rows.slice(start, batch_size)
-        images = []
-        for relative_path in chunk["path"].to_list():
-            image = cv2.imread(str(settings.dataset_path / relative_path))
-            if image is None:
-                raise FileNotFoundError(relative_path)
-            images.append(image)
-        embeddings.extend(similarity.extract_embeddings(images))
-        breeds.extend(chunk["breed"].to_list())
-        if (start // batch_size) % 20 == 0:
-            print(f"  {label}: {min(start + batch_size, total)}/{total}", end="\r")
-    print(f"  {label}: {total}/{total} embeddings")
-    return np.asarray(embeddings, dtype=np.float32), breeds
+def ruta_clave(value: str) -> str:
+    if "://" in value:
+        return value
+    return os.path.normcase(str((settings.dataset_path / value).resolve()))
 
 
-gallery_emb, gallery_breed = embed_rows(train_df, label="galería")
-test_emb, test_breed = embed_rows(test_df, label="test")
-valid_emb, valid_breed = embed_rows(valid_df, label="valid")
+indexed_paths = set(map(ruta_clave, gallery_df["path"]))
+gallery_origins = {
+    ruta_clave(value) for value in gallery_df["origin"] if value and value != "original"
+}
+if len(indexed_paths) != gallery_df.height:
+    raise ValueError("Hay rutas de galería repetidas en train_augmented.csv.")
 
-# %%
-gallery_breeds = np.asarray(gallery_breed)
-gallery_counts = {breed: int((gallery_breeds == breed).sum()) for breed in set(gallery_breed)}
-
-
-def evaluate_retrieval(
-    query_emb: np.ndarray,
-    query_breed: list[str],
-    metric: str = "cosine",
-    k: int = 10,
-) -> dict:
-    """NDCG@10, precision@10 y accuracy del voto por vecinos."""
-    cosine = np.clip(query_emb @ gallery_emb.T, -1.0, 1.0)
-    if metric == "cosine":
-        scores = cosine
-    else:  # l2 sobre vectores normalizados: 1 / (1 + distancia euclídea)
-        scores = 1.0 / (1.0 + np.sqrt(np.maximum(2.0 - 2.0 * cosine, 0.0)))
-
-    order = np.argsort(-scores, axis=1)[:, :k]
-    ndcgs, precisions = [], []
-    predicted = []
-    for index, breed in enumerate(query_breed):
-        neighbors = [
-            Neighbor(path="", breed=gallery_breeds[column], score=float(scores[index, column]))
-            for column in order[index]
-        ]
-        predicted.append(similarity.predict_breed_from_neighbors(neighbors)[0])
-        relevance = (gallery_breeds[order[index]] == breed).astype(float)
-        ndcgs.append(ndcg_at_k(relevance, k=k, n_relevant=gallery_counts.get(breed, 0)))
-        precisions.append(float(relevance.mean()))
-
-    return {
-        "metric": metric,
-        "ndcg@10": float(np.mean(ndcgs)),
-        "precision@10": float(np.mean(precisions)),
-        "accuracy": float(np.mean([pred == real for pred, real in zip(predicted, query_breed)])),
-        "unknown": float(np.mean([pred == "unknown" for pred in predicted])),
-        "scores": scores,
-        "predicted": predicted,
-        "ndcg": ndcgs,
+gallery_identifiers = indexed_paths | gallery_origins
+gallery_hashes = {sha256(Path(path).read_bytes()).digest() for path in gallery_identifiers}
+split_checks = []
+for split, queries in (("valid", valid_df), ("test", test_df), ("independiente", independent_df)):
+    query_paths = set(map(ruta_clave, queries["path"]))
+    query_origins = {
+        ruta_clave(value)
+        for column in ("origin", "source")
+        if column in queries.columns
+        for value in queries[column].drop_nulls()
+        if value and value != "original"
     }
-
-
-results_cosine = evaluate_retrieval(test_emb, test_breed, metric="cosine")
-results_l2 = evaluate_retrieval(test_emb, test_breed, metric="l2")
-
-retrieval_table = pl.DataFrame(
-    [
-        {
-            "métrica": name,
-            "NDCG@10": round(result["ndcg@10"], 4),
-            "precision@10": round(result["precision@10"], 4),
-            "accuracy": round(result["accuracy"], 4),
-            "unknown": round(result["unknown"], 4),
-        }
-        for name, result in (("cosine", results_cosine), ("l2", results_l2))
-    ]
-)
-mostrar(retrieval_table)
-
-order_cosine = np.argsort(-results_cosine["scores"], axis=1)[:, :10]
-order_l2 = np.argsort(-results_l2["scores"], axis=1)[:, :10]
-print(f"¿cosine y l2 devuelven el mismo ranking? {np.array_equal(order_cosine, order_l2)}")
-
-# %% [markdown]
-# Con embeddings L2-normalizados, `l2` y `cosine` son **equivalentes en orden**
-# (`distancia² = 2 − 2·cos`), así que NDCG y accuracy coinciden; lo que cambia es la **escala del
-# score**, y por eso el umbral se calibra sobre una métrica concreta.
-
-# %%
-# Distribución del NDCG@10 por consulta (cosine).
-ndcg_df = pl.DataFrame({"ndcg": results_cosine["ndcg"]})
-ndcg_chart = (
-    alt.Chart(inline(ndcg_df))
-    .mark_bar(opacity=0.75)
-    .encode(
-        x=alt.X("ndcg:Q", bin=alt.Bin(step=0.05), title="NDCG@10 por consulta"),
-        y=alt.Y("count():Q", title="Consultas"),
-        color=alt.value(COLORS["primary"]),
-        tooltip=[alt.Tooltip("count():Q", title="Consultas")],
+    shared_paths = query_paths & gallery_identifiers
+    shared_origins = query_origins & gallery_identifiers
+    identical_files = sum(
+        sha256(Path(path).read_bytes()).digest() in gallery_hashes for path in query_paths
     )
-    .properties(width=520, height=260, title="Distribución del NDCG@10 (test)")
-)
-display(ndcg_chart)
-
-# %%
-# Calibración del umbral con validación: cobertura vs. precisión de la mejor coincidencia.
-valid_scores = np.clip(valid_emb @ gallery_emb.T, -1.0, 1.0)
-best_valid = valid_scores.max(axis=1)
-top1_valid = gallery_breeds[valid_scores.argmax(axis=1)]
-valid_breed_array = np.asarray(valid_breed)
-
-rows = []
-for threshold in np.round(np.arange(0.50, 0.996, 0.01), 2):
-    covered = best_valid >= threshold
-    if covered.sum() == 0:
-        continue
-    precision = float((top1_valid[covered] == valid_breed_array[covered]).mean())
-    rows.append(
-        {
-            "umbral": float(threshold),
-            "cobertura": float(covered.mean()),
-            "precision@1": precision,
-            "f1": 2 * precision * float(covered.mean()) / (precision + float(covered.mean())),
-        }
-    )
-calibration = pl.DataFrame(rows)
-best_row = calibration.sort("f1", descending=True).head(1)
-recommended = float(best_row["umbral"][0])
-print(f"Umbral sugerido (mejor F1 entre cobertura y precisión): {recommended:.2f}")
-
-calibration_long = calibration.unpivot(
-    index="umbral", on=["cobertura", "precision@1"], variable_name="serie", value_name="valor"
-)
-calibration_chart = (
-    alt.Chart(inline(calibration_long))
-    .mark_line()
-    .encode(
-        x=alt.X("umbral:Q", title="Umbral de similitud"),
-        y=alt.Y("valor:Q", title=None, axis=alt.Axis(format="%")),
-        color=alt.Color(
-            "serie:N",
-            title=None,
-            scale=alt.Scale(range=[COLORS["primary"], COLORS["secondary"]]),
-        ),
-        tooltip=["umbral:Q", "serie:N", alt.Tooltip("valor:Q", format=".3f")],
-    )
-    .properties(width=560, height=300, title="Calibración del umbral (validación)")
-)
-display(calibration_chart)
-mostrar(best_row)
-
-# %%
-# Ejemplos: 3 consultas de test con sus 5 vecinos más parecidos.
-rng = np.random.default_rng(SEED)
-sample = rng.choice(len(test_breed), size=min(3, len(test_breed)), replace=False)
-test_paths = test_df["path"].to_list()
-examples = []
-for index in sample:
-    scores = results_cosine["scores"][index]
-    for rank, column in enumerate(np.argsort(-scores)[:5], start=1):
-        examples.append(
-            {
-                "consulta": Path(test_paths[index]).name,
-                "raza_real": test_breed[index],
-                "rank": rank,
-                "raza_vecino": gallery_breed[column],
-                "score": round(float(scores[column]), 3),
-            }
+    if len(query_paths) != queries.height or shared_paths or shared_origins or identical_files:
+        raise ValueError(
+            f"{split}: hay consultas repetidas o presentes en la galería. "
+            f"Rutas compartidas: {sorted(shared_paths | shared_origins)}. "
+            f"Archivos idénticos: {identical_files}."
         )
-mostrar(pl.DataFrame(examples))
+    split_checks.append(
+        {
+            "Partición": split,
+            "Imágenes": queries.height,
+            "Razas": queries["breed"].n_unique(),
+            "Rutas en galería": len(shared_paths),
+            "Orígenes en galería": len(shared_origins),
+            "Archivos idénticos": identical_files,
+        }
+    )
+
+print(f"LIMIT_PER_CLASS={LIMIT_PER_CLASS} · ResNet18 · {'CUDA' if torch.cuda.is_available() else 'CPU'}")
+display(pl.DataFrame([{
+    "Galería": "splits/train_augmented.csv",
+    "Imágenes": gallery_df.height,
+    "Razas": gallery_df["breed"].n_unique(),
+}]))
+display(pl.DataFrame(split_checks))
 
 # %%
-# Ejemplos visuales: la consulta y sus 5 vecinos (tooltip con raza y score).
-def to_image_uri(path: Path, size: int = 140) -> str:
-    """Miniatura como data URI JPEG para que Altair la muestre sin servidor."""
+baseline = build_similarity(settings.model_copy(update={"embedding_model": "baseline"}), store=None)
+gallery_paths = gallery_df["path"].to_list()
+gallery_breeds = gallery_df["breed"].to_list()
+gallery_counts = dict(gallery_df.group_by("breed").len().iter_rows())
+
+
+def baseline_image(relative_path: str) -> np.ndarray:
+    path = (settings.dataset_path / relative_path).resolve()
     image = cv2.imread(str(path))
     if image is None:
-        return ""
-    image = cv2.resize(image, (size, size), interpolation=cv2.INTER_AREA)
-    _, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 85])
-    return "data:image/jpeg;base64," + __import__("base64").b64encode(buffer.tobytes()).decode()
+        raise FileNotFoundError(f"No se pudo leer {path}")
+    return image
 
 
-def show_retrieval_example(index: int, top: int = 5) -> None:
-    """Consulta (columna 0) + los `top` vecinos recuperados."""
-    scores = results_cosine["scores"][index]
-    columns = np.argsort(-scores)[:top]
-    rows = [
-        {
-            "column": 0,
-            "image": to_image_uri(settings.dataset_path / test_paths[index]),
-            "breed": test_breed[index],
-            "score": 1.0,
-            "tipo": "consulta",
-        }
-    ]
-    for rank, column in enumerate(columns, start=1):
-        rows.append(
-            {
-                "column": rank,
-                "image": to_image_uri(settings.dataset_path / train_df["path"][int(column)]),
-                "breed": gallery_breed[column],
-                "score": round(float(scores[column]), 3),
-                "tipo": f"vecino {rank}",
-            }
-        )
-    chart = (
-        alt.Chart(inline(pl.DataFrame(rows)))
-        .mark_image(width=120, height=120)
-        .encode(
-            x=alt.X("column:O", axis=None, title=None),
-            y=alt.Y("row:O", axis=None, title=None).scale(domain=[0]),
-            url="image:N",
-            tooltip=[
-                alt.Tooltip("tipo:N", title="Rol"),
-                alt.Tooltip("breed:N", title="Raza"),
-                alt.Tooltip("score:Q", format=".3f"),
-            ],
-        )
-        .properties(
-            width=(top + 1) * 130,
-            height=160,
-            title=f"Consulta real: {test_breed[index]}",
-        )
+def embed_baseline(rows: pl.DataFrame, label: str, batch_size: int = 32) -> np.ndarray:
+    paths = rows["path"].to_list()
+    embeddings = []
+    for start in range(0, len(paths), batch_size):
+        images = [baseline_image(path) for path in paths[start : start + batch_size]]
+        embeddings.extend(baseline.extract_embeddings(images))
+    matrix = np.asarray(embeddings, dtype=np.float32)
+    print(f"{label}: {len(matrix):,} embeddings de {matrix.shape[1]} dimensiones.", flush=True)
+    return matrix
+
+
+gallery_emb = embed_baseline(gallery_df, "Galería")
+gallery_matrix = gallery_emb.astype(np.float64)
+gallery_norm2 = np.einsum("ij,ij->i", gallery_matrix, gallery_matrix)
+
+
+def retrieve_baseline(query_emb: np.ndarray) -> dict[str, list[list[Neighbor]]]:
+    """Busca en la galería completa por lotes y puntúa el top con el servicio."""
+    rankings = {metric: [] for metric in BASELINE_METRICS}
+    for start in range(0, len(query_emb), 128):
+        query_batch = query_emb[start : start + 128]
+        query_matrix = query_batch.astype(np.float64)
+        query_norm2 = np.einsum("ij,ij->i", query_matrix, query_matrix)[:, None]
+        dot = query_matrix @ gallery_matrix.T
+        cosine = dot / np.sqrt(query_norm2 * gallery_norm2)
+        distance2 = query_norm2 + gallery_norm2 - 2 * dot
+
+        for metric, order_by in (("cosine", -cosine), ("l2", distance2)):
+            baseline.similarity_metric = metric
+            columns = np.argsort(order_by, axis=1, kind="stable")[:, :BASELINE_K]
+            for embedding, indices in zip(query_batch, columns, strict=True):
+                neighbors = [
+                    Neighbor(
+                        path=gallery_paths[column],
+                        breed=gallery_breeds[column],
+                        score=baseline.similarity(embedding, gallery_emb[column]),
+                    )
+                    for column in indices
+                ]
+                neighbors.sort(key=lambda neighbor: neighbor.score, reverse=True)
+                rankings[metric].append(neighbors)
+    return rankings
+
+
+def predict_baseline(rankings: list[list[Neighbor]], k: int, threshold: float) -> np.ndarray:
+    baseline.similarity_threshold = threshold
+    return np.array([
+        baseline.predict_breed_from_neighbors(neighbors[:k])[0] for neighbors in rankings
+    ])
+
+
+def rank_metrics(rankings: list[list[Neighbor]], breeds: np.ndarray, k: int) -> np.ndarray:
+    values = []
+    for neighbors, breed in zip(rankings, breeds, strict=True):
+        relevance = [float(neighbor.breed == breed) for neighbor in neighbors[:k]]
+        ndcg = ndcg_at_k(relevance, k=k, n_relevant=gallery_counts.get(breed, 0))
+        values.append((ndcg, sum(relevance) / k))
+    return np.asarray(values)
+
+# %% [markdown]
+# ### Calibración en validación
+#
+# Para cada métrica y K se obtiene el voto ponderado de `predict_breed_from_neighbors`.
+# Se barren umbrales de 0 a 1 en pasos de 0.001 sobre el mejor score de cada consulta,
+# con la regla de la app: se devuelve `unknown` si el mejor score es menor que el umbral.
+# Se maximiza el **F1 de aciertos aceptados**, la media armónica entre la fracción de
+# aciertos entre las aceptadas y la fracción de aciertos sobre todas las consultas. Si hay
+# empate se prioriza el umbral más bajo. Valid contiene razas conocidas, así que el rechazo
+# se calibra como abstención ante errores de voto.
+#
+# En ambas escalas, mayor score significa más similitud. Cosine normaliza el producto
+# escalar y L2 usa `1 / (1 + distancia euclídea)`. Para embeddings unitarios los rankings
+# pueden coincidir, y cada escala da pesos distintos al voto. La accuracy cuenta
+# `unknown` como error. NDCG y precision miden los vecinos recuperados en todas las consultas.
+
+# %%
+valid_rankings = retrieve_baseline(embed_baseline(valid_df, "Validación"))
+valid_breeds = valid_df["breed"].to_numpy()
+threshold_grid = np.arange(1001) / 1000
+calibration_rows = []
+baseline_thresholds = {}
+
+for metric, rankings in valid_rankings.items():
+    best_scores = np.array([neighbors[0].score for neighbors in rankings])
+    accepted = best_scores[None, :] >= threshold_grid[:, None]
+    n_accepted = accepted.sum(axis=1)
+    for k in (5, BASELINE_K):
+        unfiltered = predict_baseline(rankings, k, -np.inf)
+        hits = unfiltered == valid_breeds
+        n_hits = (accepted & hits).sum(axis=1)
+        f1 = 2 * n_hits / (len(valid_breeds) + n_accepted)
+        chosen = int(f1.argmax())
+        threshold = float(threshold_grid[chosen])
+        predicted = predict_baseline(rankings, k, threshold)
+        if k == BASELINE_K:
+            baseline_thresholds[metric] = threshold
+
+        ndcg, precision = rank_metrics(rankings, valid_breeds, k).mean(axis=0)
+        covered = predicted != "unknown"
+        calibration_rows.append({
+            "Métrica": metric,
+            "K": k,
+            "Umbral": threshold,
+            "NDCG@K": ndcg,
+            "precision@K": precision,
+            "Accuracy sin rechazo (%)": 100 * hits.mean(),
+            "Accuracy (%)": 100 * (predicted == valid_breeds).mean(),
+            "Aciertos entre aceptadas (%)": 100 * (predicted[covered] == valid_breeds[covered]).mean(),
+            "Unknown (%)": 100 * (~covered).mean(),
+            "F1": f1[chosen],
+        })
+
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame(calibration_rows))
+
+print(f"Umbrales fijados para K={BASELINE_K}: " + ", ".join(
+    f"{metric}={threshold:.3f}" for metric, threshold in baseline_thresholds.items()
+))
+
+# %% [markdown]
+# ### Evaluación final con K=10
+#
+# Se aplican los umbrales fijados en validación. La relevancia es binaria por raza y
+# `ndcg_at_k` usa el número de imágenes de la raza en toda la galería para calcular el ideal.
+# La precision@10 es la fracción de vecinos de la raza real entre los diez recuperados.
+
+# %%
+baseline_results = {}
+baseline_rows = []
+for split, queries in (("test", test_df), ("independiente", independent_df)):
+    breeds = queries["breed"].to_numpy()
+    rankings_by_metric = retrieve_baseline(embed_baseline(queries, split))
+    for metric, rankings in rankings_by_metric.items():
+        threshold = baseline_thresholds[metric]
+        predicted = predict_baseline(rankings, BASELINE_K, threshold)
+        ndcg, precision = rank_metrics(rankings, breeds, BASELINE_K).T
+        baseline_results[split, metric] = (rankings, predicted, ndcg)
+        baseline_rows.append({
+            "Conjunto": split,
+            "Métrica": metric,
+            "Consultas": len(breeds),
+            "Umbral": threshold,
+            "NDCG@10": ndcg.mean(),
+            "precision@10": precision.mean(),
+            "Accuracy de raza (%)": 100 * (predicted == breeds).mean(),
+            "Unknown (%)": 100 * (predicted == "unknown").mean(),
+        })
+
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame(baseline_rows))
+
+for split in ("test", "independiente"):
+    cosine_ranks, cosine_pred, _ = baseline_results[split, "cosine"]
+    l2_ranks, l2_pred, _ = baseline_results[split, "l2"]
+    changed_ranks = sum(
+        [neighbor.path for neighbor in cosine] != [neighbor.path for neighbor in l2]
+        for cosine, l2 in zip(cosine_ranks, l2_ranks, strict=True)
     )
-    display(chart)
+    print(f"{split}: {changed_ranks}/{len(cosine_ranks)} Top-10 con distinto orden, "
+          f"{np.count_nonzero(cosine_pred != l2_pred)} predicciones distintas.")
+
+# %%
+def display_baseline_figure(figure: Figure, title: str) -> None:
+    with BytesIO() as buffer:
+        figure.savefig(buffer, format="png", dpi=110)
+        display(Image(data=buffer.getvalue(), format="png", alt=title))
 
 
-predicted = np.asarray(results_cosine["predicted"])
-correct = np.flatnonzero(predicted == np.asarray(test_breed))
-wrong = np.flatnonzero(predicted != np.asarray(test_breed))
-if len(correct):
-    show_retrieval_example(int(correct[0]))
-if len(wrong):
-    show_retrieval_example(int(wrong[0]))
+distribution = Figure(figsize=(10, 6), layout="constrained")
+distribution.suptitle("Distribución de NDCG@10")
+for axis, ((split, metric), (_, _, ndcg)) in zip(
+    distribution.subplots(2, 2, sharex=True).flat, baseline_results.items(), strict=True
+):
+    axis.hist(ndcg, bins=np.linspace(0, 1, 11), color=COLORS["primary"], edgecolor="white")
+    axis.set(title=f"{split} · {metric} (n={len(ndcg)})", xlim=(0, 1))
+for axis in distribution.axes[::2]:
+    axis.set_ylabel("Consultas")
+for axis in distribution.axes[2:]:
+    axis.set_xlabel("NDCG@10")
+display_baseline_figure(distribution, "Distribución de NDCG@10 por conjunto y métrica")
+
+# %% [markdown]
+# ### Dos consultas y sus vecinos con cosine
+#
+# Los vecinos se leen de izquierda a derecha en cada fila. Las etiquetas verdes indican
+# coincidencia con la raza real.
+
+# %%
+def show_baseline_example(split: str, queries: pl.DataFrame, index: int) -> None:
+    rankings, predicted, ndcgs = baseline_results[split, "cosine"]
+    query = queries.row(index, named=True)
+    title = (
+        f"{split.capitalize()} · {query['filename']} · cosine · NDCG@10 {ndcgs[index]:.3f}"
+    )
+    figure = Figure(figsize=(14, 5.4), layout="constrained")
+    figure.suptitle(title, fontsize=16)
+    grid = figure.add_gridspec(2, 6, width_ratios=[1.45, 1, 1, 1, 1, 1])
+    axis = figure.add_subplot(grid[:, 0])
+    axis.imshow(cv2.cvtColor(baseline_image(query["path"]), cv2.COLOR_BGR2RGB))
+    axis.set_title(f"Consulta\nReal: {query['breed']}\nPredicción: {predicted[index]}", fontsize=12)
+    axis.set_axis_off()
+    for position, neighbor in enumerate(rankings[index]):
+        axis = figure.add_subplot(grid[position // 5, 1 + position % 5])
+        axis.imshow(cv2.cvtColor(baseline_image(neighbor.path), cv2.COLOR_BGR2RGB))
+        label = fill(neighbor.breed, width=21)
+        axis.set_title(
+            f"#{position + 1} · {neighbor.score:.3f}\n{label}", fontsize=10,
+            color="#176140" if neighbor.breed == query["breed"] else "#272727",
+        )
+        axis.set_axis_off()
+    display_baseline_figure(figure, title)
+    print(f"Consulta: {query['path']}")
+    if split == "independiente":
+        display(Markdown(
+            f"Foto de la consulta de {query['author']} · "
+            f"[{query['license']}]({query['license_url']}) · [Fuente]({query['source']})"
+        ))
+
+
+for success, datasets in (
+    (True, (("test", test_df), ("independiente", independent_df))),
+    (False, (("independiente", independent_df), ("test", test_df))),
+):
+    for split, queries in datasets:
+        _, predicted, ndcg = baseline_results[split, "cosine"]
+        candidates = np.flatnonzero((predicted == queries["breed"].to_numpy()) == success)
+        if len(candidates):
+            index = int(candidates[ndcg[candidates].argmax()] if success else candidates[0])
+            show_baseline_example(split, queries, index)
+            break
 
 
 # %% [markdown]
