@@ -937,11 +937,33 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # %% [markdown]
 # ## 10. Análisis de errores
 #
-# Falsos positivos y falsos negativos con la imagen y su score, razas con peor desempeño e
-# hipótesis sobre las causas.
+# Análisis de errores del Modelo A sobre el conjunto de test: los de **mayor confianza** (se equivocó estando
+# seguro) y las razas con peor accuracy.
 
 # %%
-## TO-DO: análisis de errores con ejemplos visuales.
+errors_a = (
+    pl.DataFrame(
+        {
+            "path": evaluation_a["paths"],
+            "real": evaluation_a["labels"],
+            "predicha": evaluation_a["preds"],
+            "score": evaluation_a["scores"],
+        }
+    )
+    .filter(pl.col("real") != pl.col("predicha"))
+    .sort("score", descending=True)
+)
+mostrar(errors_a.head(10))
+
+# %%
+figure = Figure(figsize=(12, 6), layout="constrained")
+axes = figure.subplots(2, 3)
+examples = errors_a.head(6).iter_rows(named=True)
+for axis, row in zip(axes.flat, examples):
+    axis.imshow(cv2.cvtColor(baseline_image(row["path"]), cv2.COLOR_BGR2RGB))
+    axis.set_title(f"real: {row['real']}\npredicha: {row['predicha']} ({row['score']:.2f})", fontsize=9)
+    axis.axis("off")
+display_baseline_figure(figure, "Errores del Modelo A (mayor confianza)")
 
 # %% [markdown]
 # ## 11. Costo computacional
