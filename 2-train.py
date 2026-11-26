@@ -736,11 +736,17 @@ mostrar(
 # %% [markdown]
 # ### Curvas de entrenamiento y matriz de confusión (Modelo B)
 #
-# Las mismas figuras que el Modelo A, leyendo `output/history_cnn_custom.json` y
-# `output/eval_cnn_custom.json`.
+# Mismas figuras que el Modelo A: `plot_training` y `plot_confusion` sobre el historial y la
+# evaluación guardados por `train_classifier` / `evaluate_classifier`.
 
 # %%
-## TO-DO: curvas de entrenamiento y matriz de confusión del Modelo B.
+history_b = load_history("cnn_custom")
+if history_b is not None:
+    mostrar(history_b)
+    plot_training(history_b, "Modelo B")
+
+# %%
+plot_confusion(evaluation_b, "Modelo B")
 
 # %% [markdown]
 # ## 8. Evaluación sobre el conjunto independiente
