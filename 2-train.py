@@ -38,6 +38,7 @@
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 # Antes de importar torch/lib: caché de pesos y store JSON (la evaluación no usa Postgres).
@@ -75,6 +76,10 @@ COLORS = {
     "neutral": "#72b7b2",
     "gray": "#b3b3b3",
 }
+CATEGORICAL_COLORS = [
+    COLORS["primary"], COLORS["secondary"], COLORS["negative"], COLORS["positive"],
+    COLORS["neutral"], "#f2cf4a", "#9d7660", "#b279a2", "#ff9da6", "#4c78a8",
+]
 
 NOMBRES_ES = {
     "split": "partición",
@@ -567,9 +572,18 @@ classifier.set_active_model("resnet18_finetuned")
 classifier.train_classifier()
 
 # %%
-history_path = settings.output_path / "history_resnet18_finetuned.json"
-history = pl.DataFrame(json.loads(history_path.read_text(encoding="utf-8"))["epochs"])
-mostrar(history)
+def load_history(model_name: str) -> pl.DataFrame | None:
+    """Historial de `train_classifier`, o None si se reutilizó el checkpoint y no hay JSON."""
+    path = settings.output_path / f"history_{model_name}.json"
+    if not path.is_file():
+        print(f"Sin historial para {model_name}: se reutilizó el checkpoint existente.")
+        return None
+    return pl.DataFrame(json.loads(path.read_text(encoding="utf-8"))["epochs"])
+
+
+history = load_history("resnet18_finetuned")
+if history is not None:
+    mostrar(history)
 
 # %%
 metrics_a = classifier.evaluate_classifier()
@@ -640,59 +654,64 @@ def plot_training(history: pl.DataFrame, model: str) -> None:
     display(loss_chart | accuracy_chart)
 
 
-plot_training(history, "Modelo A")
+if history is not None:
+    plot_training(history, "Modelo A")
 
 # %%
-labels = evaluation_a["class_names"]
-matrix = np.asarray(evaluation_a["confusion_matrix"], dtype=float)
-normalized = matrix / np.maximum(matrix.sum(axis=1, keepdims=True), 1)
-confusion_long = pl.DataFrame(
-    {
-        "real": np.repeat(labels, len(labels)),
-        "predicha": np.tile(labels, len(labels)),
-        "n": matrix.reshape(-1).astype(int),
-        "proporción": np.round(normalized.reshape(-1), 4),
-    }
-).filter(pl.col("n") > 0)
-
-confusion_chart = (
-    alt.Chart(inline(confusion_long))
-    .mark_rect()
-    .encode(
-        x=alt.X("predicha:N", sort=labels, title=None, axis=alt.Axis(labelAngle=-90, labelFontSize=6)),
-        y=alt.Y("real:N", sort=labels, title=None, axis=alt.Axis(labelFontSize=6)),
-        color=alt.Color(
-            "proporción:Q",
-            title="Proporción",
-            scale=alt.Scale(range=["#ffffff", COLORS["primary"]]),
-        ),
-        tooltip=[
-            alt.Tooltip("real:N", title="Real"),
-            alt.Tooltip("predicha:N", title="Predicha"),
-            alt.Tooltip("n:Q", title="Imágenes"),
-            alt.Tooltip("proporción:Q", format=".1%"),
-        ],
+def plot_confusion(evaluation: dict, model: str, top_pairs: int = 15, worst: int = 10) -> None:
+    """Matriz de confusión normalizada + pares más confundidos + peores razas."""
+    labels = evaluation["class_names"]
+    matrix = np.asarray(evaluation["confusion_matrix"], dtype=float)
+    normalized = matrix / np.maximum(matrix.sum(axis=1, keepdims=True), 1)
+    long = pl.DataFrame(
+        {
+            "real": np.repeat(labels, len(labels)),
+            "predicha": np.tile(labels, len(labels)),
+            "n": matrix.reshape(-1).astype(int),
+            "proporción": np.round(normalized.reshape(-1), 4),
+        }
+    ).filter(pl.col("n") > 0)
+    chart = (
+        alt.Chart(inline(long))
+        .mark_rect()
+        .encode(
+            x=alt.X("predicha:N", sort=labels, title=None, axis=alt.Axis(labelAngle=-90, labelFontSize=6)),
+            y=alt.Y("real:N", sort=labels, title=None, axis=alt.Axis(labelFontSize=6)),
+            color=alt.Color(
+                "proporción:Q",
+                title="Proporción",
+                scale=alt.Scale(range=["#ffffff", COLORS["primary"]]),
+            ),
+            tooltip=[
+                alt.Tooltip("real:N", title="Real"),
+                alt.Tooltip("predicha:N", title="Predicha"),
+                alt.Tooltip("n:Q", title="Imágenes"),
+                alt.Tooltip("proporción:Q", format=".1%"),
+            ],
+        )
+        .properties(width=760, height=680, title=f"Matriz de confusión normalizada ({model})")
     )
-    .properties(width=760, height=680, title="Matriz de confusión normalizada (Modelo A)")
-)
-display(confusion_chart)
+    display(chart)
 
-# %%
-off_diagonal = matrix.copy()
-np.fill_diagonal(off_diagonal, 0)
-pairs = [
-    {"real": labels[row], "predicha": labels[column], "n": int(off_diagonal[row, column])}
-    for row, column in zip(*np.nonzero(off_diagonal))
-]
-if pairs:
-    mostrar(pl.DataFrame(pairs).sort("n", descending=True).head(15))
-mostrar(pl.DataFrame(evaluation_a["per_class"]).sort("accuracy").head(10))
+    off_diagonal = matrix.copy()
+    np.fill_diagonal(off_diagonal, 0)
+    pairs = [
+        {"real": labels[row], "predicha": labels[column], "n": int(off_diagonal[row, column])}
+        for row, column in zip(*np.nonzero(off_diagonal))
+    ]
+    if pairs:
+        mostrar(pl.DataFrame(pairs).sort("n", descending=True).head(top_pairs))
+    mostrar(pl.DataFrame(evaluation["per_class"]).sort("accuracy").head(worst))
+
+
+plot_confusion(evaluation_a, "Modelo A")
 
 # %% [markdown]
 # ## 7. Modelo B (obligatorio): CNN propia
 #
 # `train_classifier` con el modelo activo `cnn_custom` guarda el checkpoint en
-# `models/cnn_custom.pth`. La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
+# `models/cnn_custom.pth` (si ya existe, se omite el entrenamiento).
+# La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
 #
 # | Decisión | Elección | Por qué |
 # |---|---|---|
@@ -722,62 +741,358 @@ mostrar(
 # %% [markdown]
 # ### Curvas de entrenamiento y matriz de confusión (Modelo B)
 #
-# Las mismas figuras que el Modelo A, leyendo `output/history_cnn_custom.json` y
-# `output/eval_cnn_custom.json`.
+# Mismas figuras que el Modelo A: `plot_training` y `plot_confusion` sobre el historial y la
+# evaluación guardados por `train_classifier` / `evaluate_classifier`.
 
 # %%
-## TO-DO: curvas de entrenamiento y matriz de confusión del Modelo B.
+history_b = load_history("cnn_custom")
+if history_b is not None:
+    mostrar(history_b)
+    plot_training(history_b, "Modelo B")
+
+# %%
+plot_confusion(evaluation_b, "Modelo B")
 
 # %% [markdown]
 # ## 8. Evaluación sobre el conjunto independiente
-#
-# Cuando esté recolectado: las mismas métricas sobre `splits/independent_manifest.csv` y discusión
-# del cambio de dominio.
+# 
+# TODO hacer mejor análisis y comentarios
+# Las métricas caen pero es esperable por el cambio de dominio, Kaggle tiene un perro centrado por foto y el conjunto independiente no. Las métricas macro se promedian sobre las **razas presentes** en el
+# conjunto (no sobre las 70), para no castigar clases que no tienen ejemplos.
 
 # %%
-## TO-DO: métricas de ambos modelos sobre el conjunto independiente.
+independent = load_split("independent_manifest")
+independent_eval = (
+    independent.filter(pl.col("scene_type") == "un_perro")
+    .select(["breed", "path"])
+    .with_columns(pl.lit("independiente").alias("split"))
+    .select(["split", "breed", "path"])
+)
+independent_eval.write_csv(settings.splits_path / "independent_eval.csv")
+mostrar(independent_eval.group_by("breed").len().sort("breed"))
+
+# %%
+independent_metrics = {}
+for model_name in ("resnet18_finetuned", "cnn_custom"):
+    classifier.set_active_model(model_name)
+    independent_metrics[model_name] = classifier.evaluate_classifier("independent_eval")
+    (settings.output_path / f"eval_independent_{model_name}.json").write_text(
+        json.dumps(classifier.last_evaluation, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(
+        pl.DataFrame(
+            [{"Modelo": name, **metrics} for name, metrics in independent_metrics.items()]
+        )
+    )
 
 # %% [markdown]
 # ## 9. Embeddings de los modelos entrenados
 #
-# NDCG@10 con los embeddings del baseline, del Modelo A y del Modelo B
-# (`classifier.extract_custom_embedding`), con la misma galería y consultas, y visualización
-# PCA/t-SNE de los embeddings de test.
+# Comparación de baseline y modelos A y B como extractores de embeddings para la Etapa 1.
+# Usando misma galería, mismas consultas y misma métrica, se mide NDCG@10, precision@10 y accuracy del voto.
 
 # %%
-## TO-DO: NDCG@10 por modelo de embeddings y visualización PCA / t-SNE.
+from sklearn.manifold import TSNE
+from sklearn.metrics import f1_score, silhouette_score
+
+
+def embed_rows(extractor, rows: pl.DataFrame, label: str, batch_size: int = 32) -> np.ndarray:
+    """Embeddings L2-normalizados de un manifiesto, en lotes."""
+    paths = rows["path"].to_list()
+    embeddings = []
+    for start in range(0, len(paths), batch_size):
+        images = [baseline_image(path) for path in paths[start : start + batch_size]]
+        embeddings.extend(extractor(images))
+        print(f"  {label}: {min(start + batch_size, len(paths))}/{len(paths)}", end="\r")
+    print(f"  {label}: {len(paths)} embeddings")
+    return np.asarray(embeddings, dtype=np.float32)
+
+
+def retrieval_metrics(
+    query_emb: np.ndarray, query_breeds: list[str], gallery_matrix: np.ndarray, k: int = 10
+) -> tuple[float, float, float, list[str]]:
+    """NDCG@10, precision@10, accuracy y etiquetas predichas por el voto."""
+    cosine = np.clip(query_emb @ gallery_matrix.T, -1.0, 1.0)
+    order = np.argsort(-cosine, axis=1)[:, :k]
+    ndcgs, precisions, predicted = [], [], []
+    for index, breed in enumerate(query_breeds):
+        neighbors = [
+            Neighbor(
+                path=gallery_paths[column],
+                breed=gallery_breeds[column],
+                score=float(cosine[index, column]),
+            )
+            for column in order[index]
+        ]
+        predicted.append(baseline.predict_breed_from_neighbors(neighbors)[0])
+        relevance = [float(gallery_breeds[column] == breed) for column in order[index]]
+        ndcgs.append(ndcg_at_k(relevance, k=k, n_relevant=gallery_counts.get(breed, 0)))
+        precisions.append(float(np.mean(relevance)))
+    accuracy = float(np.mean(np.asarray(predicted) == np.asarray(query_breeds)))
+    return float(np.mean(ndcgs)), float(np.mean(precisions)), accuracy, predicted
+
+
+# %%
+baseline_test = embed_baseline(test_df, "Test baseline")
+baseline_independent = embed_baseline(independent_eval, "Independiente baseline")
+
+classifier.set_active_model("resnet18_finetuned")
+gallery_a = embed_rows(classifier.extract_custom_embeddings, gallery_df, "Galería A")
+test_a = embed_rows(classifier.extract_custom_embeddings, test_df, "Test A")
+independent_a = embed_rows(classifier.extract_custom_embeddings, independent_eval, "Independiente A")
+
+classifier.set_active_model("cnn_custom")
+gallery_b = embed_rows(classifier.extract_custom_embeddings, gallery_df, "Galería B")
+test_b = embed_rows(classifier.extract_custom_embeddings, test_df, "Test B")
+independent_b = embed_rows(classifier.extract_custom_embeddings, independent_eval, "Independiente B")
+
+# %%
+gallery_by_model = {"baseline": gallery_emb, "Modelo A": gallery_a, "Modelo B": gallery_b}
+embeddings_by_model = {
+    "baseline": (baseline_test, baseline_independent),
+    "Modelo A": (test_a, independent_a),
+    "Modelo B": (test_b, independent_b),
+}
+retrieval_rows = []
+for name, (test_embedding, independent_embedding) in embeddings_by_model.items():
+    for split, embedding, breeds in (
+        ("test", test_embedding, test_df["breed"].to_list()),
+        ("independiente", independent_embedding, independent_eval["breed"].to_list()),
+    ):
+        ndcg, precision, accuracy, predicted = retrieval_metrics(
+            embedding, breeds, gallery_by_model[name]
+        )
+        # Macro sobre las razas presentes, igual que el clasificador.
+        f1 = f1_score(
+            breeds, predicted, labels=sorted(set(breeds)), average="macro", zero_division=0
+        )
+        retrieval_rows.append(
+            {
+                "Embeddings": name,
+                "Conjunto": split,
+                "NDCG@10": ndcg,
+                "precision@10": precision,
+                "Accuracy de raza (%)": 100 * accuracy,
+                "F1 macro (%)": 100 * f1,
+            }
+        )
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame(retrieval_rows))
+
+# %% [markdown]
+
+# En Test los embeddings del Modelo A mejoran al baseline (el fine-tuning ajusta texturas
+# y contextos de las razas), pero en el conjunto independiente el baseline mantiene mejor rendimiento.
+# El Modelo B queda muy atrás en ambos conjuntos.
+# Para "EMBEDDING_MODEL" elegimos priorizar el conjunto independiente (el caso mas real) por lo que nos quedamos con el baseline.
+
+# %%
+labels = evaluation_a["class_names"]
+off_diagonal = np.asarray(evaluation_a["confusion_matrix"]).copy()
+np.fill_diagonal(off_diagonal, 0)
+confused = (
+    pl.DataFrame({"breed": labels, "n": off_diagonal.sum(axis=0) + off_diagonal.sum(axis=1)})
+    .sort("n", descending=True)
+    .head(8)
+)
+subset = confused["breed"].to_list()
+mask = test_df["breed"].is_in(subset).to_numpy()
+subset_breeds = test_df.filter(pl.Series(mask))["breed"].to_numpy()
+print(f"t-SNE sobre {int(mask.sum())} imágenes de {len(subset)} razas confundidas: {', '.join(subset)}")
+
+# %%
+tsne_charts = []
+silhouette_rows = []
+for name, embedding in (("baseline", baseline_test), ("Modelo A", test_a), ("Modelo B", test_b)):
+    subset_embedding = embedding[mask]
+    silhouette_rows.append(
+        {
+            "Embeddings": name,
+            "silhouette (test, razas confundidas)": silhouette_score(subset_embedding, subset_breeds),
+        }
+    )
+    perplexity = min(30.0, max(5.0, (len(subset_embedding) - 1) / 3))
+    points = TSNE(
+        n_components=2, perplexity=perplexity, init="pca", random_state=SEED
+    ).fit_transform(subset_embedding)
+    frame = pl.DataFrame(
+        {"x": points[:, 0], "y": points[:, 1], "breed": subset_breeds}
+    )
+    tsne_charts.append(
+        alt.Chart(inline(frame))
+        .mark_circle(size=45, opacity=0.75)
+        .encode(
+            x=alt.X("x:Q", axis=None),
+            y=alt.Y("y:Q", axis=None),
+            color=alt.Color(
+                "breed:N",
+                title=None,
+                scale=alt.Scale(range=CATEGORICAL_COLORS[: len(subset)]),
+            ),
+            tooltip=["breed:N"],
+        )
+        .properties(width=300, height=280, title=name)
+    )
+display(alt.hconcat(*tsne_charts).properties(title="t-SNE de test (razas más confundidas)"))
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame(silhouette_rows))
 
 # %% [markdown]
 # ## 10. Análisis de errores
 #
-# Falsos positivos y falsos negativos con la imagen y su score, razas con peor desempeño e
-# hipótesis sobre las causas.
+# Análisis de errores del Modelo A sobre el conjunto de test: los de **mayor confianza** (se equivocó estando
+# seguro) y las razas con peor accuracy.
 
 # %%
-## TO-DO: análisis de errores con ejemplos visuales.
+errors_a = (
+    pl.DataFrame(
+        {
+            "path": evaluation_a["paths"],
+            "real": evaluation_a["labels"],
+            "predicha": evaluation_a["preds"],
+            "score": evaluation_a["scores"],
+        }
+    )
+    .filter(pl.col("real") != pl.col("predicha"))
+    .sort("score", descending=True)
+)
+mostrar(errors_a.head(10))
+
+# %%
+figure = Figure(figsize=(12, 6), layout="constrained")
+axes = figure.subplots(2, 3)
+examples = errors_a.head(6).iter_rows(named=True)
+for axis, row in zip(axes.flat, examples):
+    axis.imshow(cv2.cvtColor(baseline_image(row["path"]), cv2.COLOR_BGR2RGB))
+    axis.set_title(f"real: {row['real']}\npredicha: {row['predicha']} ({row['score']:.2f})", fontsize=9)
+    axis.axis("off")
+display_baseline_figure(figure, "Errores del Modelo A (mayor confianza)")
 
 # %% [markdown]
 # ## 11. Costo computacional
 #
-# Parámetros, tamaño en MB, tiempo de inferencia por imagen en CPU y dimensión del embedding.
+# Parámetros, tamaño del checkpoint, tiempo de inferencia por imagen en CPU y dimensión del
+# embedding. Es lo que decide si un modelo se puede usar en la app sin GPU.
 
 # %%
-## TO-DO: costo computacional de cada modelo.
+def model_cost(model: torch.nn.Module, name: str, checkpoint: Path | None = None) -> dict:
+    """Parámetros, tamaño, latencia en CPU y dimensión del embedding."""
+    parameters = sum(parameter.numel() for parameter in model.parameters())
+    model.eval()
+    batch = torch.zeros(8, 3, settings.image_size, settings.image_size)
+    with torch.no_grad():
+        model(batch)
+        start = time.perf_counter()
+        for _ in range(3):
+            model(batch)
+    milliseconds = 1000 * (time.perf_counter() - start) / (3 * 8)
+    return {
+        "Modelo": name,
+        "Parámetros (M)": parameters / 1e6,
+        "Tamaño (MB)": round(checkpoint.stat().st_size / 1e6, 1) if checkpoint else None,
+        "ms/imagen CPU": milliseconds,
+        "Embedding": getattr(model, "embedding_dim", 512),
+    }
+
+
+from torchvision import models as tv_models
+
+baseline_model = tv_models.resnet18(weights=None)
+baseline_model.fc = torch.nn.Identity()
+baseline_model.embedding_dim = 512
+
+classifier.set_active_model("resnet18_finetuned")
+cost_a = model_cost(
+    classifier.load_model(), "Modelo A", settings.model_path / settings.resnet18_model_name
+)
+classifier.set_active_model("cnn_custom")
+cost_b = model_cost(
+    classifier.load_model(), "Modelo B", settings.model_path / settings.cnn_custom_model_name
+)
+cost_baseline = model_cost(baseline_model, "baseline")
+
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame([cost_baseline, cost_a, cost_b]))
 
 # %% [markdown]
 # ## 12. Comparación y elección final
 #
-# Tabla comparativa (Modelo A, Modelo B y baseline), qué modelo clasifica y qué embeddings usa la
-# búsqueda (`EMBEDDING_MODEL`), y comparación entre búsqueda por similitud y clasificación.
+# Tabla comparativa de las tres formas de resolver la raza: búsqueda por similitud (Etapa 1),
+# Modelo A y Modelo B (Etapa 2), con el costo de cada uno.
 
 # %%
-## TO-DO: tabla comparativa final.
+retrieval_table = {
+    (row["Embeddings"], row["Conjunto"]): row for row in retrieval_rows
+}
+comparison = []
+for name in ("Modelo A", "Modelo B"):
+    metrics_test = metrics_a if name == "Modelo A" else metrics_b
+    metrics_independent = (
+        independent_metrics["resnet18_finetuned"]
+        if name == "Modelo A"
+        else independent_metrics["cnn_custom"]
+    )
+    cost = cost_a if name == "Modelo A" else cost_b
+    comparison.append(
+        {
+            "Modelo": name,
+            "NDCG@10 test": retrieval_table[(name, "test")]["NDCG@10"],
+            "NDCG@10 indep": retrieval_table[(name, "independiente")]["NDCG@10"],
+            "Accuracy test (%)": 100 * metrics_test["accuracy"],
+            "F1 test (%)": 100 * metrics_test["f1"],
+            "Accuracy indep (%)": 100 * metrics_independent["accuracy"],
+            "F1 indep (%)": 100 * metrics_independent["f1"],
+            "Parámetros (M)": cost["Parámetros (M)"],
+            "ms/imagen CPU": cost["ms/imagen CPU"],
+        }
+    )
+comparison.append(
+    {
+        "Modelo": "baseline (Etapa 1)",
+        "NDCG@10 test": retrieval_table[("baseline", "test")]["NDCG@10"],
+        "NDCG@10 indep": retrieval_table[("baseline", "independiente")]["NDCG@10"],
+        "Accuracy test (%)": retrieval_table[("baseline", "test")]["Accuracy de raza (%)"],
+        "F1 test (%)": retrieval_table[("baseline", "test")]["F1 macro (%)"],
+        "Accuracy indep (%)": retrieval_table[("baseline", "independiente")]["Accuracy de raza (%)"],
+        "F1 indep (%)": retrieval_table[("baseline", "independiente")]["F1 macro (%)"],
+        "Parámetros (M)": cost_baseline["Parámetros (M)"],
+        "ms/imagen CPU": cost_baseline["ms/imagen CPU"],
+    }
+)
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame(comparison))
+
+# %%
+best_classifier = max(("Modelo A", "Modelo B"), key=lambda name: next(row["F1 test (%)"] for row in comparison if row["Modelo"] == name))
+best_embeddings = max(
+    ("baseline", "Modelo A", "Modelo B"),
+    key=lambda name: (
+        retrieval_table[(name, "independiente")]["NDCG@10"],
+        retrieval_table[(name, "test")]["NDCG@10"],
+    ),
+)
+print(f"Modelo para clasificar: {best_classifier}")
+print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
+
+# %% [markdown]
+#
+# - **Clasificación:** el Modelo A gana en `test` y en el conjunto independiente; el Modelo B
+#   (desde cero, 10 mil imágenes) no alcanza el mismo techo. La elección es el Modelo A.
+
+# - **Búsqueda:** Como vimos en la sección 9, el Modelo A mejora al baseline en test pero no en el conjunto independiente. El Modelo B queda muy atrás en ambos conjuntos. La elección es el baseline como EMBEDDING_MODEL.
+
+# - **Costo:** TODO analizar bien, modelo B es mas chico pero tambien mas lento
+
+# TODO mejorar esta sección
 
 # %% [markdown]
 # ## 13. Checkpoints
 #
-# Los checkpoints quedan en `models/` (no se versionan). Hay que subirlos a un link público de
-# solo lectura y ponerlo en el README y en el PR.
+# Los checkpoints quedan en `models/` (no se versionan).
+
+# TODO agregar link de descarga con los checkpoints de los modelos entrenados.
 
 # %%
 sorted(path.name for path in settings.model_path.glob("*.pth"))
