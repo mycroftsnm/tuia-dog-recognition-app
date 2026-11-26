@@ -1741,6 +1741,189 @@ def audit_search(paths):
 audit_candidates, audit_checks = audit_search(audit_paths)
 display(audit_checks)
 
+# %% [markdown]
+# #### Segunda revisión visual de los siete pares dudosos
+#
+# Cada fila muestra las dos fotos del par, sus rutas y su split final. La grilla
+# queda guardada en la notebook y se puede volver a dibujar ejecutando esta celda
+# por separado desde la raíz del repositorio.
+
+# %%
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+from PIL import Image
+
+audit_followup = [
+    tuple(line.split("|", 3))
+    for line in """
+train–valid|test/Komondor/09.jpg|train/Komondor/098.jpg|Coinciden las mechas, el hocico y la lengua. El fondo amarillo uniforme de la izquierda es compatible con un recorte del perro y un reemplazo de fondo.
+train–valid|train/Bull Mastiff/058.jpg|valid/Bull Mastiff/05.jpg|Coinciden los pliegues de la frente y el hocico. La foto izquierda parece comprimida horizontalmente. La derecha muestra un acercamiento a la cara.
+train–valid|train/Cocker/019.jpg|valid/Cocker/06.jpg|Coinciden la forma del hocico, los mechones de las orejas y el pelaje del pecho. La foto derecha tiene un encuadre más cerrado y mayor contraste.
+train–valid|train/Rhodesian/017.jpg|test/Rhodesian/03.jpg|Coinciden la mancha blanca del pecho, las patas y la postura. La versión derecha tiene proporciones más anchas y la cola queda fuera del recorte.
+train–valid|train/Rhodesian/017.jpg|train/Rhodesian/120.jpg|Coinciden la mancha del pecho, las patas y la postura. La versión derecha tiene un encuadre más cerrado y proporciones más anchas.
+train–test|train/American Spaniel/85.jpg|train/American Spaniel/83.jpg|Coinciden el perfil, el pelo de la oreja y el césped. La foto de la izquierda acerca la cara. La de la derecha tiene menor nitidez y marcas de agua.
+train–test|train/Chihuahua/091.jpg|train/Chihuahua/090.jpg|Coinciden las orejas, el hocico y detalles desenfocados del fondo. Cambian la escala y las proporciones del encuadre.
+""".strip().splitlines()
+]
+pair_number = 0
+for cross in ("train–test", "train–valid"):
+    pairs = [(a, b) for pair_cross, a, b, _ in audit_followup if pair_cross == cross]
+    figure, axes = plt.subplots(
+        len(pairs), 2, figsize=(7.6, 3.1 * len(pairs)),
+        squeeze=False, layout="constrained",
+    )
+    for (path_a, path_b), row_axes in zip(pairs, axes, strict=True):
+        pair_number += 1
+        for axis, split, path in zip(row_axes, cross.split("–"), (path_a, path_b), strict=True):
+            with Image.open(Path("data/dataset") / path) as photo:
+                axis.imshow(photo.convert("RGB"), interpolation="nearest")
+            label = f"Par {pair_number} · {split} final" if split == "train" else f"{split} final"
+            axis.set_title(f"{label}\n{path}", fontsize=9)
+            axis.axis("off")
+    plt.show()
+
+# %% [markdown]
+# **Conclusiones de la segunda revisión**
+#
+# Confirmamos los siete pares como variantes de una misma foto de origen.
+#
+# 1. **American Spaniel.** Coinciden el perfil, el pelo de la oreja y el césped. La foto de la izquierda acerca la cara. La de la derecha tiene menor nitidez y marcas de agua.
+# 2. **Chihuahua.** Coinciden las orejas, el hocico y detalles desenfocados del fondo. Cambian la escala y las proporciones del encuadre.
+# 3. **Komondor.** Coinciden las mechas, el hocico y la lengua. El fondo amarillo uniforme de la izquierda es compatible con un recorte del perro y un reemplazo de fondo.
+# 4. **Bull Mastiff.** Coinciden los pliegues de la frente y el hocico. La foto izquierda parece comprimida horizontalmente. La derecha muestra un acercamiento a la cara.
+# 5. **Cocker.** Coinciden la forma del hocico, los mechones de las orejas y el pelaje del pecho. La foto derecha tiene un encuadre más cerrado y mayor contraste.
+# 6. **Rhodesian (consulta 03.jpg).** Coinciden la mancha blanca del pecho, las patas y la postura. La versión derecha tiene proporciones más anchas y la cola queda fuera del recorte.
+# 7. **Rhodesian (consulta 120.jpg).** Coinciden la mancha del pecho, las patas y la postura. La versión derecha tiene un encuadre más cerrado y proporciones más anchas.
+
+# %% [markdown]
+# #### Revisión visual y alcance
+#
+# Se revisaron los candidatos lado a lado. Se confirmó una misma foto con otro
+# recorte, escala, edición o compresión, y también tomas casi idénticas cuando
+# coinciden el animal y detalles de la escena. Un par queda **dudoso** si esos
+# detalles no alcanzan para resolver el origen común. Los **descartados** muestran
+# diferencias de escena, pose o rasgos que exceden el criterio.
+#
+# La búsqueda genera la lista de pares. La huella identifica los pares revisados
+# y el contenido de sus fotos. Si coincide, se aplican las decisiones guardadas.
+# La segunda revisión resolvió los siete pares que habían quedado dudosos.
+# Un cambio en esos pares o fotos exige repetir la revisión antes de publicar
+# los conteos.
+
+# %%
+# Registro breve de descartes y de la segunda revisión visual.
+import json
+
+audit_keys = ["Cruce", "Ruta A", "Ruta B"]
+audit_reviewed_signature = "7ef8c29886bbb98a6516df3f5c61f2b7b6fda82447f38e13f9c4533bd096ab0c"
+
+
+def audit_signature(candidates):
+    pairs = sorted(candidates[audit_keys].itertuples(index=False, name=None))
+    paths = sorted({path for _, path_a, path_b in pairs for path in (path_a, path_b)})
+    signature = hashlib.sha256(json.dumps(pairs, ensure_ascii=False).encode("utf-8"))
+    for path in paths:
+        signature.update(hashlib.sha256((DATASET_DIR / path).read_bytes()).digest())
+    return signature.hexdigest()
+
+
+if audit_signature(audit_candidates) != audit_reviewed_signature:
+    raise ValueError("Cambió el conjunto de pares revisado o sus fotos. Hace falta una nueva revisión visual.")
+
+audit_notes = """
+train–valid|train/Boston Terrier/45.jpg|train/Boston Terrier/25.jpg|Descartado|Distinta forma de orejas y cabeza, y postura diferente.
+train–valid|train/Great Perenees/13.jpg|train/Komondor/072.jpg|Descartado|Coinciden la alfombra y las flores del evento. En primer plano aparecen perros distintos.
+train–test|train/Pit Bull/057.jpg|train/Pit Bull/123.jpg|Descartado|Poses y fondos distintos. La mancha del pecho por sí sola no verifica una toma casi idéntica.
+train–test|train/Pug/071.jpg|train/Pug/037.jpg|Descartado|Cambian el contorno de los ojos, las orejas y las arrugas del hocico.
+train–test|valid/Japanese Spaniel/09.jpg|train/Japanese Spaniel/068.jpg|Descartado|Distintos patrones de pelaje, pose y entorno.
+valid–test|train/Bichon Frise/046.jpg|train/Bichon Frise/067.jpg|Descartado|Cambian la cara, el fondo y la postura. Coincide el corte del pelo.
+valid–test|train/Chow/023.jpg|train/Chow/047.jpg|Descartado|Fondos y postura de las patas diferentes. Coincide el parecido facial.
+valid–test|train/Corgi/092.jpg|train/Corgi/093.jpg|Descartado|Postura, expresión y escenario diferentes pese al parecido de la franja frontal.
+valid–test|train/Labrador/137.jpg|train/Labrador/131.jpg|Descartado|Una toma de pie y otra recostada. La coincidencia se concentra en el retrato.
+""".strip()
+audit_review_notes = pd.DataFrame(
+    [line.split("|", 4) for line in audit_notes.splitlines()]
+    + [(cross, a, b, "Confirmado", note) for cross, a, b, note in audit_followup],
+    columns=[*audit_keys, "Decisión", "Observación"],
+)
+audit_review = audit_candidates.merge(
+    audit_review_notes,
+    on=audit_keys,
+    how="left",
+    validate="one_to_one",
+)
+audit_review["Decisión"] = audit_review["Decisión"].fillna("Confirmado")
+audit_review["Observación"] = audit_review["Observación"].fillna(
+    "Coinciden rasgos distintivos y detalles de la toma."
+)
+audit_confirmed = audit_review.loc[audit_review["Decisión"] == "Confirmado"]
+assert ((audit_confirmed["Ruta A"] == audit_control[0]) & (audit_confirmed["Ruta B"] == audit_control[1])).any()
+
+# Componentes conexas de pares confirmados. Cada nodo incluye la partición final.
+audit_neighbors = defaultdict(set)
+for cross, path_a, path_b in audit_confirmed[audit_keys].itertuples(index=False, name=None):
+    left_split, right_split = cross.split("–")
+    left, right = (left_split, path_a), (right_split, path_b)
+    audit_neighbors[left].add(right)
+    audit_neighbors[right].add(left)
+
+audit_group_by_image = {}
+audit_groups = {}
+for root in sorted(audit_neighbors):
+    if root in audit_group_by_image:
+        continue
+    group = f"G{len(audit_groups) + 1:03d}"
+    members = {root}
+    frontier = [root]
+    while frontier:
+        unseen = audit_neighbors[frontier.pop()] - members
+        members.update(unseen)
+        frontier.extend(unseen)
+    audit_groups[group] = members
+    audit_group_by_image.update(dict.fromkeys(members, group))
+
+audit_review["Grupo"] = [
+    audit_group_by_image[(cross.split("–")[0], path_a)] if decision == "Confirmado" else ""
+    for cross, path_a, decision in audit_review[["Cruce", "Ruta A", "Decisión"]].itertuples(
+        index=False, name=None
+    )
+]
+
+
+def audit_paths_in_cross(pairs, split):
+    paths = set()
+    for column, side in (("Ruta A", 0), ("Ruta B", 1)):
+        in_split = pairs["Cruce"].str.split("–").str[side] == split
+        paths.update(pairs.loc[in_split, column])
+    return paths
+
+
+audit_summary_rows = []
+for left_split, right_split in audit_crosses:
+    cross = f"{left_split}–{right_split}"
+    pairs = audit_review.loc[audit_review["Cruce"] == cross]
+    confirmed = pairs.loc[pairs["Decisión"] == "Confirmado"]
+    audit_summary_rows.append({
+        "Cruce": cross,
+        "Candidatos": len(pairs),
+        "Pares confirmados": len(confirmed),
+        "Grupos confirmados": confirmed["Grupo"].nunique(),
+        "Dudosos": int(pairs["Decisión"].eq("Dudoso").sum()),
+        "Descartados": int(pairs["Decisión"].eq("Descartado").sum()),
+        "Valid únicas": len(audit_paths_in_cross(confirmed, "valid")),
+        "Test únicas": len(audit_paths_in_cross(confirmed, "test")),
+    })
+audit_summary = pd.DataFrame(audit_summary_rows)
+display(audit_summary)
+
+# %% [markdown]
+# Un grupo es una componente conexa de pares confirmados. Un grupo con miembros
+# en tres particiones puede aparecer en varios cruces. Las columnas de imágenes
+# únicas cuentan las rutas de valid y test que son extremo de algún par confirmado
+# de ese cruce. La tabla de exclusiones cuenta cada foto una vez entre todos los
+# cruces y usa la componente completa.
+
 
 # %% [markdown]
 # ## 3.8 Licencias y uso de imágenes
