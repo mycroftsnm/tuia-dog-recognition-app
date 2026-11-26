@@ -785,12 +785,154 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # %% [markdown]
 # ## 9. Embeddings de los modelos entrenados
 #
-# NDCG@10 con los embeddings del baseline, del Modelo A y del Modelo B
-# (`classifier.extract_custom_embedding`), con la misma galería y consultas, y visualización
-# PCA/t-SNE de los embeddings de test.
+# Comparación de baseline y modelos A y B como extractores de embeddings para la Etapa 1.
+# Usando misma galería, mismas consultas y misma métrica, se mide NDCG@10, precision@10 y accuracy del voto.
 
 # %%
-## TO-DO: NDCG@10 por modelo de embeddings y visualización PCA / t-SNE.
+from sklearn.manifold import TSNE
+from sklearn.metrics import f1_score, silhouette_score
+
+
+def embed_rows(extractor, rows: pl.DataFrame, label: str, batch_size: int = 32) -> np.ndarray:
+    """Embeddings L2-normalizados de un manifiesto, en lotes."""
+    paths = rows["path"].to_list()
+    embeddings = []
+    for start in range(0, len(paths), batch_size):
+        images = [baseline_image(path) for path in paths[start : start + batch_size]]
+        embeddings.extend(extractor(images))
+        print(f"  {label}: {min(start + batch_size, len(paths))}/{len(paths)}", end="\r")
+    print(f"  {label}: {len(paths)} embeddings")
+    return np.asarray(embeddings, dtype=np.float32)
+
+
+def retrieval_metrics(
+    query_emb: np.ndarray, query_breeds: list[str], gallery_matrix: np.ndarray, k: int = 10
+) -> tuple[float, float, float, list[str]]:
+    """NDCG@10, precision@10, accuracy y etiquetas predichas por el voto."""
+    cosine = np.clip(query_emb @ gallery_matrix.T, -1.0, 1.0)
+    order = np.argsort(-cosine, axis=1)[:, :k]
+    ndcgs, precisions, predicted = [], [], []
+    for index, breed in enumerate(query_breeds):
+        neighbors = [
+            Neighbor(
+                path=gallery_paths[column],
+                breed=gallery_breeds[column],
+                score=float(cosine[index, column]),
+            )
+            for column in order[index]
+        ]
+        predicted.append(baseline.predict_breed_from_neighbors(neighbors)[0])
+        relevance = [float(gallery_breeds[column] == breed) for column in order[index]]
+        ndcgs.append(ndcg_at_k(relevance, k=k, n_relevant=gallery_counts.get(breed, 0)))
+        precisions.append(float(np.mean(relevance)))
+    accuracy = float(np.mean(np.asarray(predicted) == np.asarray(query_breeds)))
+    return float(np.mean(ndcgs)), float(np.mean(precisions)), accuracy, predicted
+
+
+# %%
+baseline_test = embed_baseline(test_df, "Test baseline")
+baseline_independent = embed_baseline(independent_eval, "Independiente baseline")
+
+classifier.set_active_model("resnet18_finetuned")
+gallery_a = embed_rows(classifier.extract_custom_embeddings, gallery_df, "Galería A")
+test_a = embed_rows(classifier.extract_custom_embeddings, test_df, "Test A")
+independent_a = embed_rows(classifier.extract_custom_embeddings, independent_eval, "Independiente A")
+
+classifier.set_active_model("cnn_custom")
+gallery_b = embed_rows(classifier.extract_custom_embeddings, gallery_df, "Galería B")
+test_b = embed_rows(classifier.extract_custom_embeddings, test_df, "Test B")
+independent_b = embed_rows(classifier.extract_custom_embeddings, independent_eval, "Independiente B")
+
+# %%
+gallery_by_model = {"baseline": gallery_emb, "Modelo A": gallery_a, "Modelo B": gallery_b}
+embeddings_by_model = {
+    "baseline": (baseline_test, baseline_independent),
+    "Modelo A": (test_a, independent_a),
+    "Modelo B": (test_b, independent_b),
+}
+retrieval_rows = []
+for name, (test_embedding, independent_embedding) in embeddings_by_model.items():
+    for split, embedding, breeds in (
+        ("test", test_embedding, test_df["breed"].to_list()),
+        ("independiente", independent_embedding, independent_eval["breed"].to_list()),
+    ):
+        ndcg, precision, accuracy, predicted = retrieval_metrics(
+            embedding, breeds, gallery_by_model[name]
+        )
+        # Macro sobre las razas presentes, igual que el clasificador.
+        f1 = f1_score(
+            breeds, predicted, labels=sorted(set(breeds)), average="macro", zero_division=0
+        )
+        retrieval_rows.append(
+            {
+                "Embeddings": name,
+                "Conjunto": split,
+                "NDCG@10": ndcg,
+                "precision@10": precision,
+                "Accuracy de raza (%)": 100 * accuracy,
+                "F1 macro (%)": 100 * f1,
+            }
+        )
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame(retrieval_rows))
+
+# %% [markdown]
+
+# En Test los embeddings del Modelo A mejoran al baseline (el fine-tuning ajusta texturas
+# y contextos de las razas), pero en el conjunto independiente el baseline mantiene mejor rendimiento.
+# El Modelo B queda muy atrás en ambos conjuntos.
+# Para "EMBEDDING_MODEL" elegimos priorizar el conjunto independiente (el caso mas real) por lo que nos quedamos con el baseline.
+
+# %%
+labels = evaluation_a["class_names"]
+off_diagonal = np.asarray(evaluation_a["confusion_matrix"]).copy()
+np.fill_diagonal(off_diagonal, 0)
+confused = (
+    pl.DataFrame({"breed": labels, "n": off_diagonal.sum(axis=0) + off_diagonal.sum(axis=1)})
+    .sort("n", descending=True)
+    .head(8)
+)
+subset = confused["breed"].to_list()
+mask = test_df["breed"].is_in(subset).to_numpy()
+subset_breeds = test_df.filter(pl.Series(mask))["breed"].to_numpy()
+print(f"t-SNE sobre {int(mask.sum())} imágenes de {len(subset)} razas confundidas: {', '.join(subset)}")
+
+# %%
+tsne_charts = []
+silhouette_rows = []
+for name, embedding in (("baseline", baseline_test), ("Modelo A", test_a), ("Modelo B", test_b)):
+    subset_embedding = embedding[mask]
+    silhouette_rows.append(
+        {
+            "Embeddings": name,
+            "silhouette (test, razas confundidas)": silhouette_score(subset_embedding, subset_breeds),
+        }
+    )
+    perplexity = min(30.0, max(5.0, (len(subset_embedding) - 1) / 3))
+    points = TSNE(
+        n_components=2, perplexity=perplexity, init="pca", random_state=SEED
+    ).fit_transform(subset_embedding)
+    frame = pl.DataFrame(
+        {"x": points[:, 0], "y": points[:, 1], "breed": subset_breeds}
+    )
+    tsne_charts.append(
+        alt.Chart(inline(frame))
+        .mark_circle(size=45, opacity=0.75)
+        .encode(
+            x=alt.X("x:Q", axis=None),
+            y=alt.Y("y:Q", axis=None),
+            color=alt.Color(
+                "breed:N",
+                title=None,
+                scale=alt.Scale(range=CATEGORICAL_COLORS[: len(subset)]),
+            ),
+            tooltip=["breed:N"],
+        )
+        .properties(width=300, height=280, title=name)
+    )
+display(alt.hconcat(*tsne_charts).properties(title="t-SNE de test (razas más confundidas)"))
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame(silhouette_rows))
 
 # %% [markdown]
 # ## 10. Análisis de errores
