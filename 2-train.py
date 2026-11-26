@@ -513,6 +513,30 @@ for success, datasets in (
             show_baseline_example(split, queries, index)
             break
 
+# %% [markdown]
+# ### Lectura de la corrida completa
+#
+# En validación, pasar de K=5 a K=10 sube la accuracy de raza de 88.91% a 89.49% con
+# cosine y a 89.56% con l2. La precisión de los vecinos baja de 0.8468 a 0.8273
+# al ampliar el ranking de cinco a diez. Con K=10, el máximo F1 permite aceptar todas
+# las consultas de validación y la regla de desempate elige 0.000 en ambas escalas.
+# Para reproducir este baseline en la app se usa `SIMILARITY_METRIC=cosine`,
+# `TOP_K=10` y `SIMILARITY_THRESHOLD=0.000`. La calibración mide el rechazo de
+# consultas etiquetadas con razas conocidas.
+#
+# En test e independiente, cosine y l2 coincidieron en el orden de todos los Top-10 y
+# produjeron las mismas predicciones. El NDCG medio bajó de 0.8357 en test a 0.4915
+# en las 25 fotos independientes.
+#
+# - **Afghan en test, acierto.** Los diez vecinos comparten el hocico alargado y el pelo
+#   largo que enmarca la cabeza. El vecino 1 (`valid/Afghan/05.jpg`, score 0.951) tiene
+#   un encuadre y un fondo de césped casi idénticos a los de la consulta
+#   `train/Afghan/012.jpg`. Son archivos distintos de acuerdo con sus rutas y hashes.
+#   Los vecinos 2 y 3 también muestran una imagen original de la galería y su copia aumentada.
+# - **Poodle independiente, error.** El perro negro está sentado sobre una cama. La sombra
+#   dificulta distinguir el hocico y el pelo rizado se parece al de varios vecinos.
+#   El primer vecino es Schnauzer y los vecinos 6, 7 y 10 suman el voto ganador de
+#   Irish Spaniel. El único Poodle aparece en el puesto 9, de perfil y al aire libre.
 
 # %% [markdown]
 # ## 6. Modelo A (obligatorio): fine-tuning de ResNet
