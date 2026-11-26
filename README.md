@@ -336,9 +336,12 @@ Completar en la entrega final:
 - Modelo de embeddings baseline (Etapa 1) y justificación
 - Modelo A (fine-tuning) y Modelo B (CNN propia): arquitectura, estrategia y justificación
 - Hiperparámetros y proceso de entrenamiento
-- Detector YOLO utilizado y `YOLO_CONF_THRESHOLD` elegido
 - Umbral de similitud elegido y cómo se calibró
 - Links públicos de descarga de los checkpoints
+
+### Evaluación de YOLO
+
+Se recomienda `YOLO_CONF_THRESHOLD=0.15` para YOLOv8n (`models/yolov8n.pt`). En validación detectó 15 de 22 perros frente a 13 con `0.25`, con cero cajas falsas y duplicadas en ambos umbrales. [Etapa 3 — Validación del detector YOLO](2-train.ipynb#etapa-3--validación-del-detector-yolo).
 
 ## Resultados
 

@@ -693,3 +693,302 @@ mostrar(
 
 # %%
 sorted(path.name for path in settings.model_path.glob("*.pth"))
+
+# %% [markdown]
+# ## Etapa 3 — Validación del detector YOLO
+#
+# Sección 6.3 del enunciado. Se comparan `0.15`, `0.25` y `0.50` con `models/yolov8n.pt` mediante `DetectionService.detect_dogs` para la clase COCO `dog` (16). La elección se hace con validación. Se priorizan menos perros omitidos, luego menos cajas falsas y duplicadas en total y, si persiste el empate, la cercanía a `0.25`. El conjunto independiente se usa después como comprobación.
+#
+# Se ordena `splits/valid.csv` por `(breed, path)` y se baraja con `random.Random(42)`. Se elige la primera imagen de cada etiqueta `breed` hasta llegar a 24. Si hay menos etiquetas, se completa con rutas distintas en el mismo orden barajado. Cada `path` se resuelve bajo `data/dataset`.
+#
+# Primero se cuentan los perros domésticos visibles en los originales. La muestra contiene 22 fotos con un perro y dos negativos, `Dhole` y `Coyote`, que son cánidos silvestres. Una caja acierta cuando localiza una porción sustancial y reconocible de la cabeza o el cuerpo de un perro. En orden de confianza, cada caja se asigna a un solo perro y cada perro suma un solo acierto. Otra caja que localiza al mismo perro se cuenta como duplicada. Una caja que no localiza a un perro se cuenta como falsa y un perro que queda sin una caja asignada se cuenta como omitido. El criterio se aplica por ubicación, independientemente del clasificador de razas.
+#
+# Para repetirlo, abrí la notebook desde la raíz del repo con el kernel de la `.venv` y ejecutá en orden solo las celdas de esta sección. Usan las imágenes y los pesos locales.
+#
+# La corrida guardada usó Python 3.12.11, Ultralytics 8.4.218 y PyTorch 2.11.0 en CPU.
+
+# %%
+import csv
+import random
+import sys
+from io import BytesIO
+from pathlib import Path
+
+import cv2
+import pandas as pd
+from IPython.display import Image, Markdown, display
+from matplotlib.figure import Figure
+from matplotlib.patches import Rectangle
+
+YOLO_RAIZ = Path.cwd()
+YOLO_DATASET = YOLO_RAIZ / "data" / "dataset"
+YOLO_PESOS = YOLO_RAIZ / "models" / "yolov8n.pt"
+YOLO_UMBRALES = (0.15, 0.25, 0.50)
+YOLO_CONTEOS = ["Aciertos", "Omisiones", "Cajas falsas", "Duplicadas"]
+
+if not (YOLO_RAIZ / "src" / "lib").is_dir():
+    raise RuntimeError("Abrí el kernel desde la raíz del repositorio.")
+if not YOLO_PESOS.is_file():
+    raise FileNotFoundError(YOLO_PESOS)
+
+sys.path.insert(0, str(YOLO_RAIZ / "src"))
+from lib.services.detection_service import DetectionService
+
+# Se llama únicamente a detect_dogs. La instancia reutiliza los pesos entre umbrales.
+yolo_detector = DetectionService(
+    classifier=None, yolo_model=str(YOLO_PESOS), conf_threshold=0.25, dog_class_id=16
+)
+
+def yolo_leer_manifiesto(nombre):
+    with (YOLO_RAIZ / "splits" / nombre).open(encoding="utf-8-sig", newline="") as archivo:
+        return list(csv.DictReader(archivo))
+
+def yolo_seleccionar_validacion():
+    filas = sorted(yolo_leer_manifiesto("valid.csv"), key=lambda fila: (fila["breed"], fila["path"]))
+    random.Random(42).shuffle(filas)
+    rutas, razas = {}, set()
+    for fila in filas:
+        ruta, raza = fila["path"], fila["breed"]
+        if raza not in razas and ruta not in rutas:
+            rutas[ruta] = "Validación"
+            razas.add(raza)
+            if len(rutas) == 24:
+                break
+    for fila in filas:
+        if len(rutas) == 24:
+            break
+        rutas.setdefault(fila["path"], "Validación")
+    if len(rutas) != 24:
+        raise ValueError("Se requieren 24 imágenes distintas en valid.csv.")
+    return rutas
+
+def yolo_leer_imagen(ruta):
+    archivo = YOLO_DATASET / ruta
+    imagen = cv2.imread(str(archivo))
+    if imagen is None:
+        raise FileNotFoundError(archivo)
+    return imagen
+
+# %%
+# Revisión de los originales y de las cajas de la corrida visual, por path del manifiesto.
+# Cada entrada contiene (perros visibles, {caja de referencia (x1, y1, x2, y2): destino}).
+# "perro" identifica al único perro de la foto. Los nombres en la escena identifican instancias.
+# La caja del Bluetick se aceptó porque abarca su cabeza y pecho visibles.
+# Los destinos fuera de la lista de perros visibles se revisaron como falsos positivos.
+YOLO_REVISION = {
+    "train/Clumber/055.jpg": (("perro",), {}),
+    "train/Shiba Inu/48.jpg": (("perro",), {}),
+    "train/Bloodhound/047.jpg": (("perro",), {(3, 20, 220, 209): "perro"}),
+    "test/Bull Mastiff/04.jpg": (("perro",), {(0, 8, 213, 168): "perro"}),
+    "train/Great Perenees/72.jpg": (("perro",), {}),
+    "train/Bichon Frise/097.jpg": (("perro",), {}),
+    "train/Pekinese/102.jpg": (("perro",), {(3, 21, 203, 197): "perro"}),
+    "train/Basset/006.jpg": (("perro",), {(5, 8, 199, 224): "perro"}),
+    "train/Beagle/100.jpg": (("perro",), {(6, 0, 215, 224): "perro"}),
+    "test/Mex Hairless/08.jpg": (("perro",), {(27, 1, 219, 222): "perro"}),
+    "train/Vizsla/07.jpg": (("perro",), {(16, 1, 217, 220): "perro"}),
+    "train/Lhasa/120.jpg": (("perro",), {(14, 15, 214, 218): "perro"}),
+    "train/Poodle/107.jpg": (("perro",), {(5, 6, 202, 224): "perro"}),
+    "train/Bearded Collie/01.jpg": (("perro",), {}),
+    "train/Bull Terrier/063.jpg": (("perro",), {}),
+    "train/Cairn/109.jpg": (("perro",), {(0, 8, 218, 220): "perro"}),
+    "train/Basenji/33.jpg": (("perro",), {(30, 2, 223, 224): "perro"}),
+    "train/Dhole/056.jpg": ((), {}),
+    "train/Chow/068.jpg": (("perro",), {(9, 35, 223, 207): "perro"}),
+    "train/German Sheperd/101.jpg": (("perro",), {}),
+    "train/Coyote/83.jpg": ((), {}),
+    "train/Corgi/091.jpg": (("perro",), {(18, 17, 222, 223): "perro"}),
+    "train/Bluetick/105.jpg": (("perro",), {(11, 6, 136, 176): "perro"}),
+    "test/Border Collie/07.jpg": (("perro",), {(12, 7, 221, 222): "perro"}),
+    "independent/Beagle/beagle_001.jpg": (("perro",), {(250, 373, 845, 1043): "perro"}),
+    "independent/Beagle/beagle_002.jpg": (("perro",), {(109, 374, 814, 1280): "perro"}),
+    "independent/Bearded Collie/bearded_collie_001.jpg": (("perro",), {(247, 30, 720, 718): "perro"}),
+    "independent/Bearded Collie/bearded_collie_002.jpg": (("perro",), {(133, 104, 805, 1149): "perro"}),
+    "independent/Border Collie/border_collie_001.jpg": (("perro",), {(46, 102, 262, 203): "perro"}),
+    "independent/Border Collie/border_collie_002.jpg": (("perro",), {(26, 270, 380, 646): "perro"}),
+    "independent/Chihuahua/chihuahua_001.jpg": (("perro",), {(109, 76, 559, 520): "perro"}),
+    "independent/Chihuahua/chihuahua_002.jpg": (("perro",), {(144, 105, 801, 395): "perro"}),
+    "independent/Chihuahua/chihuahua_003.jpg": (("perro",), {(143, 40, 1218, 1070): "perro"}),
+    "independent/Cockapoo/cockapoo_001.jpg": (("perro",), {(1, 437, 736, 1331): "perro"}),
+    "independent/Cockapoo/cockapoo_002.jpg": (("perro",), {(241, 132, 818, 1154): "perro"}),
+    "independent/Collie/collie_001.jpg": (("perro",), {(224, 45, 706, 470): "perro"}),
+    "independent/Collie/collie_002.jpg": (("perro",), {(1, 0, 738, 718): "perro"}),
+    "independent/Golden Retriever/golden_retriever_001.jpg": (("perro",), {(1243, 558, 2576, 2255): "perro"}),
+    "independent/Golden Retriever/golden_retriever_002.jpg": (("perro",), {(28, 4, 628, 478): "perro"}),
+    "independent/Labradoodle/labradoodle_001.jpg": (("perro",), {(6, 285, 670, 873): "perro"}),
+    "independent/Labradoodle/labradoodle_002.jpg": (("perro",), {(231, 303, 1246, 1879): "perro"}),
+    "independent/Labrador/labrador_001.jpg": (("perro",), {(195, 739, 3024, 3741): "perro"}),
+    "independent/Labrador/labrador_002.jpg": (("perro",), {}),
+    "independent/Pekinese/pekinese_001.jpg": (("perro",), {(62, 153, 757, 674): "perro"}),
+    "independent/Pekinese/pekinese_002.jpg": (("perro",), {(23, 187, 849, 816): "perro"}),
+    "independent/Pomeranian/pomeranian_001.jpg": (("perro",), {(62, 18, 709, 617): "perro"}),
+    "independent/Pomeranian/pomeranian_002.jpg": (("perro",), {(27, 27, 922, 828): "perro"}),
+    "independent/Poodle/Poodle.jpg": (("perro",), {(187, 21, 718, 848): "perro"}),
+    "independent/Poodle/Standard_black_Poodle.jpg": (("perro",), {(197, 15, 408, 425): "perro"}),
+    "independent/escenas/escena_001.jpg": (
+        ("Beagle", "Golden Retriever"),
+        {
+            (855, 1375, 2709, 3014): "Beagle",
+            (1036, 453, 4032, 2755): "Golden Retriever",
+            (513, 2, 1234, 1560): "persona del fondo",
+        },
+    ),
+    "independent/sin_perro/gato_001.jpg": ((), {}),
+}
+
+# %%
+def yolo_iou(caja, referencia):
+    x1, y1, x2, y2 = caja
+    rx1, ry1, rx2, ry2 = referencia
+    interseccion = max(0, min(x2, rx2) - max(x1, rx1)) * max(0, min(y2, ry2) - max(y1, ry1))
+    union = (x2 - x1) * (y2 - y1) + (rx2 - rx1) * (ry2 - ry1) - interseccion
+    return interseccion / union
+
+def yolo_evaluar(muestra):
+    registros = []
+    for ruta, tipo in muestra.items():
+        visibles, referencias = YOLO_REVISION[ruta]
+        imagen = yolo_leer_imagen(ruta)
+        for umbral in YOLO_UMBRALES:
+            yolo_detector.conf_threshold = umbral
+            detecciones = sorted(yolo_detector.detect_dogs(imagen), key=lambda deteccion: -deteccion[1])
+            asignados, cajas = set(), []
+            for caja, confianza in detecciones:
+                # IoU de 0.85 altera solo el emparejamiento con una caja ya revisada
+                # ante una pequeña deriva en píxeles. El acierto se decide visualmente.
+                destinos = {
+                    destino for referencia, destino in referencias.items()
+                    if yolo_iou(caja, referencia) >= 0.85
+                }
+                if len(destinos) != 1:
+                    raise ValueError(
+                        f"Revisá la caja {caja} de {ruta} con umbral {umbral:.2f} "
+                        f"(confianza {confianza:.4f}). La anotación no es inequívoca."
+                    )
+                destino = destinos.pop()
+                if destino not in visibles:
+                    revision = "Falsa"
+                elif destino in asignados:
+                    revision = "Duplicada"
+                else:
+                    revision = "Acierto"
+                    asignados.add(destino)
+                cajas.append((caja, confianza, destino, revision))
+
+            omitidos = tuple(perro for perro in visibles if perro not in asignados)
+            registros.append({
+                "Ruta": ruta, "Tipo de caso": tipo, "Umbral": umbral,
+                "Visibles": visibles, "Omitidos": omitidos, "Cajas": cajas,
+                "Aciertos": len(asignados), "Omisiones": len(omitidos),
+                "Cajas falsas": sum(caja[3] == "Falsa" for caja in cajas),
+                "Duplicadas": sum(caja[3] == "Duplicada" for caja in cajas),
+            })
+    return pd.DataFrame(registros)
+
+def yolo_mostrar_revision(evaluacion):
+    filas = []
+    for ruta, datos in evaluacion.groupby("Ruta", sort=False):
+        fila = {"Ruta": ruta, "Perros visibles": ", ".join(datos.iloc[0]["Visibles"]) or "0"}
+        for resultado in datos.to_dict("records"):
+            revision = [
+                f"{estado}: {destino} ({confianza:.4f})"
+                for _, confianza, destino, estado in resultado["Cajas"]
+            ]
+            revision.extend(f"Omisión: {perro}" for perro in resultado["Omitidos"])
+            fila[f"{resultado['Umbral']:.2f}"] = " · ".join(revision) or "0 cajas"
+        filas.append(fila)
+    with pd.option_context("display.max_colwidth", None, "display.max_rows", None):
+        display(pd.DataFrame(filas).style.hide(axis="index"))
+
+# %%
+yolo_validacion = yolo_evaluar(yolo_seleccionar_validacion())
+yolo_mostrar_revision(yolo_validacion)
+
+# %% [markdown]
+# ### Resultado de validación
+#
+# Las tablas y figuras se calculan a partir de las detecciones de esta corrida. En la figura, el texto de cada caja indica su asignación visual y la confianza de YOLO.
+
+# %%
+def yolo_mostrar_cajas(evaluacion, ruta, titulo, altura):
+    original = cv2.cvtColor(yolo_leer_imagen(ruta), cv2.COLOR_BGR2RGB)
+    figura = Figure(figsize=(15, altura), layout="constrained")
+    figura.suptitle(titulo, fontsize=16)
+    resultados = evaluacion[evaluacion["Ruta"] == ruta].to_dict("records")
+    for eje, resultado in zip(figura.subplots(1, 3), resultados, strict=True):
+        cajas = resultado["Cajas"]
+        eje.imshow(original)
+        cantidad = "1 caja" if len(cajas) == 1 else f"{len(cajas)} cajas"
+        eje.set_title(f"Umbral {resultado['Umbral']:.2f} · {cantidad}", fontsize=13)
+        eje.set_axis_off()
+        aciertos = iter(("#ffe14a", "#f259d8"))
+        for (x1, y1, x2, y2), confianza, destino, revision in cajas:
+            color = {
+                "Falsa": "#4de0ff",
+                "Duplicada": "#ffa85d",
+            }.get(revision)
+            if revision == "Acierto":
+                color = next(aciertos, "#ffe14a")
+            eje.add_patch(Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, edgecolor=color, lw=2.4))
+            eje.annotate(
+                f"{destino} · {confianza:.4f}", (x1, y1), xytext=(2, -2),
+                textcoords="offset points", va="top", fontsize=10, color="black",
+                bbox={"facecolor": color, "edgecolor": "none", "pad": 2},
+            )
+    with BytesIO() as salida:
+        figura.savefig(salida, format="png", dpi=105)
+        display(Image(data=salida.getvalue(), format="png", alt=titulo))
+
+yolo_totales_validacion = yolo_validacion.groupby("Umbral")[YOLO_CONTEOS].sum()
+display(yolo_totales_validacion.style.format_index("{:.2f}", axis=0))
+yolo_elegido = min(
+    YOLO_UMBRALES,
+    key=lambda umbral: (
+        yolo_totales_validacion.loc[umbral, "Omisiones"],
+        yolo_totales_validacion.loc[umbral, "Cajas falsas"] + yolo_totales_validacion.loc[umbral, "Duplicadas"],
+        abs(umbral - 0.25),
+    ),
+)
+yolo_mostrar_cajas(yolo_validacion, "train/Poodle/107.jpg", "Validación · Poodle, 107.jpg", 4.8)
+display(Markdown(f"**La validación favorece `{yolo_elegido:.2f}`.**"))
+
+# %% [markdown]
+# **Elección en validación.** `0.15` omitió 7 de los 22 perros, frente a 9 con `0.25` y 14 con `0.50`. Las cajas falsas y duplicadas fueron cero en los tres casos. Bajar de `0.25` a `0.15` recuperó el Poodle de la figura (0.2101) y el Bluetick (0.2040), cuya caja localiza la cabeza y el pecho. Todos los positivos son fotos individuales. Esta muestra aporta evidencia limitada sobre oclusiones y falsos positivos.
+
+# %% [markdown]
+# ### Comprobación independiente
+#
+# El manifiesto tiene 28 filas. Se agrupan por `path` para procesar una sola vez `escena_001.jpg`, que tiene una fila por perro. Quedan 27 imágenes únicas. Se comparan los tres umbrales con el mismo criterio visual y se informa por separado el resultado de las fotos individuales, la escena y el gato.
+
+# %%
+yolo_tipos = {
+    "un_perro": "Fotos individuales",
+    "varios_perros": "Escena con dos perros",
+    "gato": "Gato",
+}
+yolo_rutas_independientes = {}
+for yolo_fila in yolo_leer_manifiesto("independent_manifest.csv"):
+    yolo_ruta = yolo_fila["path"]
+    yolo_tipo = yolo_tipos[yolo_fila["scene_type"]]
+    if yolo_rutas_independientes.setdefault(yolo_ruta, yolo_tipo) != yolo_tipo:
+        raise ValueError(f"Tipos de escena distintos para {yolo_ruta}.")
+
+yolo_independiente = yolo_evaluar(dict(sorted(yolo_rutas_independientes.items())))
+yolo_totales_independiente = (
+    yolo_independiente.groupby(["Tipo de caso", "Umbral"], sort=False)[YOLO_CONTEOS].sum()
+)
+display(yolo_totales_independiente.style.format_index("{:.2f}", level="Umbral", axis=0))
+yolo_mostrar_revision(yolo_independiente)
+
+# %%
+yolo_mostrar_cajas(
+    yolo_independiente, "independent/escenas/escena_001.jpg", "Escena independiente · dos perros", 4.9
+)
+yolo_mostrar_cajas(
+    yolo_independiente, "independent/sin_perro/gato_001.jpg", "Negativo independiente · gato", 4.1
+)
+
+# %% [markdown]
+# El Beagle con arnés, en primer plano, tapa parte del Golden Retriever, que se inclina hacia él. Al fondo a la izquierda se ve una persona desenfocada con pantalón claro y cortada por el borde superior. Las cajas superpuestas del Beagle (0.8688) y del Golden Retriever (0.2813) localizan perros distintos. Con `0.50` queda solo la del Beagle. Al bajar de `0.25` a `0.15` aparece una caja falsa sobre la persona (0.1503) y se mantienen los mismos 26 perros detectados en el conjunto independiente. La foto del gato devuelve cero cajas con los tres umbrales.
+#
+# Se conserva la elección de validación, `0.15`. Una sola escena con solapamiento permite describir este error, y la frecuencia de errores en otras escenas con personas u oclusión queda por medir.

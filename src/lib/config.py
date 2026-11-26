@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # Configuracion de YOLO (Etapa 3)
     yolo_model: str = os.getenv("YOLO_MODEL", str(model_path / "yolov8n.pt"))
-    yolo_conf_threshold: float = os.getenv("YOLO_CONF_THRESHOLD", 0.25)
+    yolo_conf_threshold: float = os.getenv("YOLO_CONF_THRESHOLD", 0.15)
     yolo_dog_class_id: int = os.getenv("YOLO_DOG_CLASS_ID", 16)
 
     # Paths
