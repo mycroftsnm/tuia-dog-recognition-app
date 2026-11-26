@@ -38,6 +38,7 @@
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 # Antes de importar torch/lib: caché de pesos y store JSON (la evaluación no usa Postgres).
@@ -75,6 +76,10 @@ COLORS = {
     "neutral": "#72b7b2",
     "gray": "#b3b3b3",
 }
+CATEGORICAL_COLORS = [
+    COLORS["primary"], COLORS["secondary"], COLORS["negative"], COLORS["positive"],
+    COLORS["neutral"], "#f2cf4a", "#9d7660", "#b279a2", "#ff9da6", "#4c78a8",
+]
 
 NOMBRES_ES = {
     "split": "partición",
