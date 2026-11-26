@@ -267,6 +267,7 @@ class ClassifierService:
         np.add.at(matrix, (np.asarray(labels), np.asarray(preds)), 1)
 
         total = int(matrix.sum())
+        support = matrix.sum(axis=1)
         precisions, recalls, f1s, specificities = [], [], [], []
         for index in range(num_classes):
             tp = int(matrix[index, index])
@@ -279,12 +280,15 @@ class ClassifierService:
             f1s.append(f1)
             specificities.append(specificity(tn, fp))
 
+        # Macro sobre las clases presentes en las etiquetas: en el conjunto independiente no
+        # están las 70 razas y promediar las ausentes (con 0) hundiría las métricas sin sentido.
+        present = support > 0
         metrics = {
             "accuracy": float(np.trace(matrix) / max(1, total)),
-            "precision": float(np.mean(precisions)),
-            "recall": float(np.mean(recalls)),
-            "specificity": float(np.mean(specificities)),
-            "f1": float(np.mean(f1s)),
+            "precision": float(np.mean(np.asarray(precisions)[present])),
+            "recall": float(np.mean(np.asarray(recalls)[present])),
+            "specificity": float(np.mean(np.asarray(specificities)[present])),
+            "f1": float(np.mean(np.asarray(f1s)[present])),
         }
         return metrics, matrix
 

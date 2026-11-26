@@ -750,12 +750,37 @@ plot_confusion(evaluation_b, "Modelo B")
 
 # %% [markdown]
 # ## 8. Evaluación sobre el conjunto independiente
-#
-# Cuando esté recolectado: las mismas métricas sobre `splits/independent_manifest.csv` y discusión
-# del cambio de dominio.
+# 
+# TODO hacer mejor análisis y comentarios
+# Las métricas caen pero es esperable por el cambio de dominio, Kaggle tiene un perro centrado por foto y el conjunto independiente no. Las métricas macro se promedian sobre las **razas presentes** en el
+# conjunto (no sobre las 70), para no castigar clases que no tienen ejemplos.
 
 # %%
-## TO-DO: métricas de ambos modelos sobre el conjunto independiente.
+independent = load_split("independent_manifest")
+independent_eval = (
+    independent.filter(pl.col("scene_type") == "un_perro")
+    .select(["breed", "path"])
+    .with_columns(pl.lit("independiente").alias("split"))
+    .select(["split", "breed", "path"])
+)
+independent_eval.write_csv(settings.splits_path / "independent_eval.csv")
+mostrar(independent_eval.group_by("breed").len().sort("breed"))
+
+# %%
+independent_metrics = {}
+for model_name in ("resnet18_finetuned", "cnn_custom"):
+    classifier.set_active_model(model_name)
+    independent_metrics[model_name] = classifier.evaluate_classifier("independent_eval")
+    (settings.output_path / f"eval_independent_{model_name}.json").write_text(
+        json.dumps(classifier.last_evaluation, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(
+        pl.DataFrame(
+            [{"Modelo": name, **metrics} for name, metrics in independent_metrics.items()]
+        )
+    )
 
 # %% [markdown]
 # ## 9. Embeddings de los modelos entrenados
