@@ -1014,17 +1014,80 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # %% [markdown]
 # ## 12. Comparación y elección final
 #
-# Tabla comparativa (Modelo A, Modelo B y baseline), qué modelo clasifica y qué embeddings usa la
-# búsqueda (`EMBEDDING_MODEL`), y comparación entre búsqueda por similitud y clasificación.
+# Tabla comparativa de las tres formas de resolver la raza: búsqueda por similitud (Etapa 1),
+# Modelo A y Modelo B (Etapa 2), con el costo de cada uno.
 
 # %%
-## TO-DO: tabla comparativa final.
+retrieval_table = {
+    (row["Embeddings"], row["Conjunto"]): row for row in retrieval_rows
+}
+comparison = []
+for name in ("Modelo A", "Modelo B"):
+    metrics_test = metrics_a if name == "Modelo A" else metrics_b
+    metrics_independent = (
+        independent_metrics["resnet18_finetuned"]
+        if name == "Modelo A"
+        else independent_metrics["cnn_custom"]
+    )
+    cost = cost_a if name == "Modelo A" else cost_b
+    comparison.append(
+        {
+            "Modelo": name,
+            "NDCG@10 test": retrieval_table[(name, "test")]["NDCG@10"],
+            "NDCG@10 indep": retrieval_table[(name, "independiente")]["NDCG@10"],
+            "Accuracy test (%)": 100 * metrics_test["accuracy"],
+            "F1 test (%)": 100 * metrics_test["f1"],
+            "Accuracy indep (%)": 100 * metrics_independent["accuracy"],
+            "F1 indep (%)": 100 * metrics_independent["f1"],
+            "Parámetros (M)": cost["Parámetros (M)"],
+            "ms/imagen CPU": cost["ms/imagen CPU"],
+        }
+    )
+comparison.append(
+    {
+        "Modelo": "baseline (Etapa 1)",
+        "NDCG@10 test": retrieval_table[("baseline", "test")]["NDCG@10"],
+        "NDCG@10 indep": retrieval_table[("baseline", "independiente")]["NDCG@10"],
+        "Accuracy test (%)": retrieval_table[("baseline", "test")]["Accuracy de raza (%)"],
+        "F1 test (%)": retrieval_table[("baseline", "test")]["F1 macro (%)"],
+        "Accuracy indep (%)": retrieval_table[("baseline", "independiente")]["Accuracy de raza (%)"],
+        "F1 indep (%)": retrieval_table[("baseline", "independiente")]["F1 macro (%)"],
+        "Parámetros (M)": cost_baseline["Parámetros (M)"],
+        "ms/imagen CPU": cost_baseline["ms/imagen CPU"],
+    }
+)
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame(comparison))
+
+# %%
+best_classifier = max(("Modelo A", "Modelo B"), key=lambda name: next(row["F1 test (%)"] for row in comparison if row["Modelo"] == name))
+best_embeddings = max(
+    ("baseline", "Modelo A", "Modelo B"),
+    key=lambda name: (
+        retrieval_table[(name, "independiente")]["NDCG@10"],
+        retrieval_table[(name, "test")]["NDCG@10"],
+    ),
+)
+print(f"Modelo para clasificar: {best_classifier}")
+print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
+
+# %% [markdown]
+#
+# - **Clasificación:** el Modelo A gana en `test` y en el conjunto independiente; el Modelo B
+#   (desde cero, 10 mil imágenes) no alcanza el mismo techo. La elección es el Modelo A.
+
+# - **Búsqueda:** Como vimos en la sección 9, el Modelo A mejora al baseline en test pero no en el conjunto independiente. El Modelo B queda muy atrás en ambos conjuntos. La elección es el baseline como EMBEDDING_MODEL.
+
+# - **Costo:** TODO analizar bien, modelo B es mas chico pero tambien mas lento
+
+# TODO mejorar esta sección
 
 # %% [markdown]
 # ## 13. Checkpoints
 #
-# Los checkpoints quedan en `models/` (no se versionan). Hay que subirlos a un link público de
-# solo lectura y ponerlo en el README y en el PR.
+# Los checkpoints quedan en `models/` (no se versionan).
+
+# TODO agregar link de descarga con los checkpoints de los modelos entrenados.
 
 # %%
 sorted(path.name for path in settings.model_path.glob("*.pth"))
