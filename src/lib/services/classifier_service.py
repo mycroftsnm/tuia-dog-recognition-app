@@ -236,6 +236,7 @@ class ClassifierService:
         total_loss, total, correct = 0.0, 0, 0
         predictions: list[int] = []
         labels: list[int] = []
+        confidences: list[float] = []
         with torch.set_grad_enabled(optimizer is not None):
             for images, targets in loader:
                 images, targets = images.to(device), targets.to(device)
@@ -247,15 +248,17 @@ class ClassifierService:
                     optimizer.step()
                 total_loss += float(loss.item()) * targets.size(0)
                 total += targets.size(0)
-                predicted = logits.argmax(dim=1)
+                probability, predicted = logits.softmax(dim=1).max(dim=1)
                 correct += int((predicted == targets).sum().item())
                 predictions.extend(predicted.detach().cpu().tolist())
                 labels.extend(targets.detach().cpu().tolist())
+                confidences.extend(probability.detach().cpu().tolist())
         return {
             "loss": total_loss / max(1, total),
             "accuracy": correct / max(1, total),
             "preds": predictions,
             "labels": labels,
+            "scores": confidences,
         }
 
     @staticmethod
@@ -408,17 +411,18 @@ class ClassifierService:
         self._loaded.pop(self.active_model_name, None)
         logger.info("Historial guardado en %s", history_path)
 
-    def evaluate_classifier(self) -> dict[str, float]:
-        """Evalúa el modelo activo sobre `splits/test.csv`.
+    def evaluate_classifier(self, split: str = "test") -> dict[str, float]:
+        """Evalúa el modelo activo sobre `splits/<split>.csv` (por defecto, `test`).
 
         Devuelve accuracy, precision, recall, specificity y F1 (macro) y deja en
-        `self.last_evaluation` la matriz de confusión y las métricas por raza.
+        `self.last_evaluation` la matriz de confusión, las métricas por raza y las
+        predicciones (para el análisis de errores).
         """
         model = self.load_model()
         device = self._device()
         model.to(device)
         class_names = model.class_names
-        rows = self._load_manifest("test")
+        rows = self._load_manifest(split)
         class_index = {name: index for index, name in enumerate(class_names)}
 
         loader = self._make_loader(rows, class_index, train=False)
@@ -430,6 +434,10 @@ class ClassifierService:
             "model": self.active_model_name,
             "metrics": metrics,
             "class_names": class_names,
+            "paths": [row["path"] for row in rows],
+            "labels": [class_names[index] for index in result["labels"]],
+            "preds": [class_names[index] for index in result["preds"]],
+            "scores": result["scores"],
             "confusion_matrix": matrix.tolist(),
             "per_class": [
                 {
@@ -446,14 +454,28 @@ class ClassifierService:
         return metrics
 
     def extract_custom_embedding(self, image: np.ndarray) -> list[float]:
-        """Embedding del modelo activo (capa previa al clasificador), L2-normalizado.
-        """
+        """Embedding del modelo activo (capa previa al clasificador), L2-normalizado."""
+        return self.extract_custom_embeddings([image])[0]
+
+    def extract_custom_embeddings(
+        self, images: list[np.ndarray], batch_size: int = 32
+    ) -> list[list[float]]:
+        """Versión por lotes de `extract_custom_embedding` (para indexar/evaluar más rápido)."""
         model = self.load_model()
         device = self._device()
         model.to(device)
         model.eval()
-        tensor = torch.from_numpy(preprocess(image, self.image_size)).unsqueeze(0).to(device)
+        embeddings: list[list[float]] = []
         with torch.no_grad():
-            vector = model.embed(tensor).squeeze(0).cpu().numpy().astype(np.float32)
-        vector = vector / max(float(np.linalg.norm(vector)), 1e-12)
-        return vector.astype(float).tolist()
+            for start in range(0, len(images), batch_size):
+                batch = np.stack(
+                    [
+                        preprocess(image, self.image_size)
+                        for image in images[start : start + batch_size]
+                    ]
+                )
+                features = model.embed(torch.from_numpy(batch).to(device))
+                array = features.cpu().numpy().astype(np.float32)
+                array = array / np.maximum(np.linalg.norm(array, axis=1, keepdims=True), 1e-12)
+                embeddings.extend(array.astype(float).tolist())
+        return embeddings
