@@ -298,7 +298,18 @@ class ClassifierService:
         Usa `train_augmented.csv` (originales + copias que balancean las clases) y
         `valid.csv` para early stopping. Guarda el historial por época en
         `output/history_<modelo>.json` para graficar las curvas en la notebook.
+
+        Si el checkpoint ya existe, **se omite el entrenamiento**: borrá
+        `models/<modelo>.pth` si querés reentrenarlo.
         """
+        checkpoint = self.active_checkpoint
+        if checkpoint.exists():
+            logger.info(
+                "Checkpoint ya existe (%s): se omite el entrenamiento. Borralo para reentrenar.",
+                checkpoint,
+            )
+            return
+
         config = self.training
         self._seed_everything(SEED)
 
@@ -321,7 +332,6 @@ class ClassifierService:
         )
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.epochs)
 
-        checkpoint = self.active_checkpoint
         checkpoint.parent.mkdir(parents=True, exist_ok=True)
         history: list[dict[str, float]] = []
         best_f1, best_epoch, epochs_without_improvement = -1.0, 0, 0

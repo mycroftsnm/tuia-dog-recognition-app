@@ -705,7 +705,8 @@ plot_confusion(evaluation_a, "Modelo A")
 # ## 7. Modelo B (obligatorio): CNN propia
 #
 # `train_classifier` con el modelo activo `cnn_custom` guarda el checkpoint en
-# `models/cnn_custom.pth`. La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
+# `models/cnn_custom.pth` (si ya existe, se omite el entrenamiento).
+# La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
 #
 # | Decisión | Elección | Por qué |
 # |---|---|---|
