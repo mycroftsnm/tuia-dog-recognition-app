@@ -968,10 +968,48 @@ display_baseline_figure(figure, "Errores del Modelo A (mayor confianza)")
 # %% [markdown]
 # ## 11. Costo computacional
 #
-# Parámetros, tamaño en MB, tiempo de inferencia por imagen en CPU y dimensión del embedding.
+# Parámetros, tamaño del checkpoint, tiempo de inferencia por imagen en CPU y dimensión del
+# embedding. Es lo que decide si un modelo se puede usar en la app sin GPU.
 
 # %%
-## TO-DO: costo computacional de cada modelo.
+def model_cost(model: torch.nn.Module, name: str, checkpoint: Path | None = None) -> dict:
+    """Parámetros, tamaño, latencia en CPU y dimensión del embedding."""
+    parameters = sum(parameter.numel() for parameter in model.parameters())
+    model.eval()
+    batch = torch.zeros(8, 3, settings.image_size, settings.image_size)
+    with torch.no_grad():
+        model(batch)
+        start = time.perf_counter()
+        for _ in range(3):
+            model(batch)
+    milliseconds = 1000 * (time.perf_counter() - start) / (3 * 8)
+    return {
+        "Modelo": name,
+        "Parámetros (M)": parameters / 1e6,
+        "Tamaño (MB)": round(checkpoint.stat().st_size / 1e6, 1) if checkpoint else None,
+        "ms/imagen CPU": milliseconds,
+        "Embedding": getattr(model, "embedding_dim", 512),
+    }
+
+
+from torchvision import models as tv_models
+
+baseline_model = tv_models.resnet18(weights=None)
+baseline_model.fc = torch.nn.Identity()
+baseline_model.embedding_dim = 512
+
+classifier.set_active_model("resnet18_finetuned")
+cost_a = model_cost(
+    classifier.load_model(), "Modelo A", settings.model_path / settings.resnet18_model_name
+)
+classifier.set_active_model("cnn_custom")
+cost_b = model_cost(
+    classifier.load_model(), "Modelo B", settings.model_path / settings.cnn_custom_model_name
+)
+cost_baseline = model_cost(baseline_model, "baseline")
+
+with pl.Config(tbl_cols=-1, float_precision=4):
+    display(pl.DataFrame([cost_baseline, cost_a, cost_b]))
 
 # %% [markdown]
 # ## 12. Comparación y elección final
