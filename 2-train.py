@@ -653,50 +653,53 @@ if history is not None:
     plot_training(history, "Modelo A")
 
 # %%
-labels = evaluation_a["class_names"]
-matrix = np.asarray(evaluation_a["confusion_matrix"], dtype=float)
-normalized = matrix / np.maximum(matrix.sum(axis=1, keepdims=True), 1)
-confusion_long = pl.DataFrame(
-    {
-        "real": np.repeat(labels, len(labels)),
-        "predicha": np.tile(labels, len(labels)),
-        "n": matrix.reshape(-1).astype(int),
-        "proporción": np.round(normalized.reshape(-1), 4),
-    }
-).filter(pl.col("n") > 0)
-
-confusion_chart = (
-    alt.Chart(inline(confusion_long))
-    .mark_rect()
-    .encode(
-        x=alt.X("predicha:N", sort=labels, title=None, axis=alt.Axis(labelAngle=-90, labelFontSize=6)),
-        y=alt.Y("real:N", sort=labels, title=None, axis=alt.Axis(labelFontSize=6)),
-        color=alt.Color(
-            "proporción:Q",
-            title="Proporción",
-            scale=alt.Scale(range=["#ffffff", COLORS["primary"]]),
-        ),
-        tooltip=[
-            alt.Tooltip("real:N", title="Real"),
-            alt.Tooltip("predicha:N", title="Predicha"),
-            alt.Tooltip("n:Q", title="Imágenes"),
-            alt.Tooltip("proporción:Q", format=".1%"),
-        ],
+def plot_confusion(evaluation: dict, model: str, top_pairs: int = 15, worst: int = 10) -> None:
+    """Matriz de confusión normalizada + pares más confundidos + peores razas."""
+    labels = evaluation["class_names"]
+    matrix = np.asarray(evaluation["confusion_matrix"], dtype=float)
+    normalized = matrix / np.maximum(matrix.sum(axis=1, keepdims=True), 1)
+    long = pl.DataFrame(
+        {
+            "real": np.repeat(labels, len(labels)),
+            "predicha": np.tile(labels, len(labels)),
+            "n": matrix.reshape(-1).astype(int),
+            "proporción": np.round(normalized.reshape(-1), 4),
+        }
+    ).filter(pl.col("n") > 0)
+    chart = (
+        alt.Chart(inline(long))
+        .mark_rect()
+        .encode(
+            x=alt.X("predicha:N", sort=labels, title=None, axis=alt.Axis(labelAngle=-90, labelFontSize=6)),
+            y=alt.Y("real:N", sort=labels, title=None, axis=alt.Axis(labelFontSize=6)),
+            color=alt.Color(
+                "proporción:Q",
+                title="Proporción",
+                scale=alt.Scale(range=["#ffffff", COLORS["primary"]]),
+            ),
+            tooltip=[
+                alt.Tooltip("real:N", title="Real"),
+                alt.Tooltip("predicha:N", title="Predicha"),
+                alt.Tooltip("n:Q", title="Imágenes"),
+                alt.Tooltip("proporción:Q", format=".1%"),
+            ],
+        )
+        .properties(width=760, height=680, title=f"Matriz de confusión normalizada ({model})")
     )
-    .properties(width=760, height=680, title="Matriz de confusión normalizada (Modelo A)")
-)
-display(confusion_chart)
+    display(chart)
 
-# %%
-off_diagonal = matrix.copy()
-np.fill_diagonal(off_diagonal, 0)
-pairs = [
-    {"real": labels[row], "predicha": labels[column], "n": int(off_diagonal[row, column])}
-    for row, column in zip(*np.nonzero(off_diagonal))
-]
-if pairs:
-    mostrar(pl.DataFrame(pairs).sort("n", descending=True).head(15))
-mostrar(pl.DataFrame(evaluation_a["per_class"]).sort("accuracy").head(10))
+    off_diagonal = matrix.copy()
+    np.fill_diagonal(off_diagonal, 0)
+    pairs = [
+        {"real": labels[row], "predicha": labels[column], "n": int(off_diagonal[row, column])}
+        for row, column in zip(*np.nonzero(off_diagonal))
+    ]
+    if pairs:
+        mostrar(pl.DataFrame(pairs).sort("n", descending=True).head(top_pairs))
+    mostrar(pl.DataFrame(evaluation["per_class"]).sort("accuracy").head(worst))
+
+
+plot_confusion(evaluation_a, "Modelo A")
 
 # %% [markdown]
 # ## 7. Modelo B (obligatorio): CNN propia
