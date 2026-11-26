@@ -1469,15 +1469,104 @@ plt.show()
 size_mb = sum(path.stat().st_size for path in AUGMENT_DIR.rglob("*.jpg")) / 1e6
 print(f"{AUGMENT_DIR.relative_to(ROOT)} → {size_mb:.0f} MB")
 
-# %%
-# Verificación de fuga: cada imagen una sola vez y sin duplicados entre particiones.
-repetidas = final.group_by("path").len().filter(pl.col("len") > 1)
-print(f"Rutas repetidas entre splits: {repetidas.height}")
+# %% [markdown]
+# ### Auditoría de fuga entre los splits finales
+#
+# El nombre de cada manifiesto da la partición final. El prefijo de la ruta indica
+# la carpeta original de Kaggle. Para train_augmented.csv, cada fila con
+# origin = "original" se representa por su propia ruta, y cada copia aumentada
+# por la ruta de origin. Cada foto de origen cuenta una vez.
+#
+# Para reproducir el diagnóstico, abrí la notebook desde la raíz del repo con
+# el kernel de la .venv. Ejecutá **Configuración global**, la celda que empieza
+# con DHASH_MAX_DISTANCE en 3.3 y todas las celdas de esta subsección.
 
-exact_check = mark_duplicates(final.select(["path", "split", "breed"]), DATASET_DIR)
-near_check = mark_near_duplicates(final.select(["path", "split", "breed"]), DATASET_DIR)
-print(f"Archivos idénticos entre splits: {exact_check.filter(pl.col('is_duplicate')).height}")
-print(f"Casi-duplicados entre splits: {near_check.filter(pl.col('is_near_duplicate')).height}")
+# %%
+from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from threading import local
+from typing import NamedTuple
+
+import pandas as pd
+from IPython.display import HTML
+from threadpoolctl import threadpool_limits
+
+audit_splits = ("train", "valid", "test")
+audit_crosses = (("train", "valid"), ("train", "test"), ("valid", "test"))
+audit_manifests = {
+    split: pl.read_csv(SPLITS_DIR / f"{split}.csv").sort("path")
+    for split in audit_splits
+}
+audit_gallery = pl.read_csv(SPLITS_DIR / "train_augmented.csv").with_columns(
+    pl.when(pl.col("origin") == "original")
+    .then(pl.col("path"))
+    .otherwise(pl.col("origin"))
+    .alias("source_path")
+)
+audit_paths = {}
+for split, manifest in audit_manifests.items():
+    if set(manifest["split"]) != {split} or manifest["path"].n_unique() != manifest.height:
+        raise ValueError(f"Partición inesperada o rutas repetidas dentro de {split}.csv")
+    audit_paths[split] = manifest["path"].to_list()
+
+train_origins = audit_manifests["train"].select(pl.col("path").alias("source_path"), "breed")
+untraced = audit_gallery.join(train_origins, on=["source_path", "breed"], how="anti")
+if (
+    set(audit_gallery["split"]) != {"train"}
+    or audit_gallery["path"].n_unique() != audit_gallery.height
+    or not untraced.is_empty()
+    or set(audit_gallery["source_path"]) != set(audit_paths["train"])
+):
+    raise ValueError("Las filas de train_augmented.csv deben cubrir los orígenes de train.csv y respetar su raza.")
+
+audit_augmentations = audit_gallery.filter(pl.col("origin") != "original")
+display(pd.DataFrame([{
+    "train (orígenes)": len(audit_paths["train"]),
+    "valid": len(audit_paths["valid"]),
+    "test": len(audit_paths["test"]),
+    "filas de train_augmented": audit_gallery.height,
+    "copias aumentadas": audit_augmentations.height,
+    "orígenes con aumentos": audit_augmentations["source_path"].n_unique(),
+}]))
+
+# %%
+audit_control = ("valid/Afghan/05.jpg", "train/Afghan/012.jpg")
+assert audit_control[0] in audit_paths["train"] and audit_control[1] in audit_paths["test"]
+control_gray = [cv2.imread(str(DATASET_DIR / path), cv2.IMREAD_GRAYSCALE) for path in audit_control]
+control_dhash = [int(dhash64(image), 16) for image in control_gray]
+control_distance = (control_dhash[0] ^ control_dhash[1]).bit_count()
+control_a, control_b = [small_gray(path, DATASET_DIR) for path in audit_control]
+control_corr = max(
+    correlation(control_a, np.roll(control_b, (dy, dx), axis=(0, 1)))
+    for dy in range(-3, 4)
+    for dx in range(-3, 4)
+)
+control_sha = [hashlib.sha256((DATASET_DIR / path).read_bytes()).digest() for path in audit_control]
+
+figure, axes = plt.subplots(1, 2, figsize=(7, 3.7), layout="constrained")
+for ax, split, path in zip(axes, ("train", "test"), audit_control):
+    with Image.open(DATASET_DIR / path) as photo:
+        ax.imshow(photo.convert("RGB"))
+    ax.set_title(f"{split} final\n{path}", fontsize=10)
+    ax.axis("off")
+plt.show()
+display(pd.DataFrame([{
+    "SHA-256 iguales": control_sha[0] == control_sha[1],
+    "Distancia dHash": control_distance,
+    "Máximo dHash": DHASH_MAX_DISTANCE,
+    "Mejor correlación con ±3 px": round(control_corr, 4),
+    "Mínimo de correlación": SAME_PHOTO_MIN_CORR,
+}]))
+
+# %% [markdown]
+# El control Afghan repite el perro, el perfil, el césped y el detalle del margen
+# derecho. Cambian la escala y la posición de mechones del pelo. Los bytes difieren.
+# Con una distancia dHash de **10**, el par queda fuera de la preselección de R5
+# (máximo **6**). La mejor correlación con desplazamientos de hasta ±3 px es
+# **0,8378** frente al mínimo de **0,99**. Ese ajuste solo traslada la imagen,
+# así que las diferencias de escala y encuadre reducen la correlación global.
+# La búsqueda local recupera el control sin agregarlo a mano.
+
 
 # %% [markdown]
 # ## 3.8 Licencias y uso de imágenes
