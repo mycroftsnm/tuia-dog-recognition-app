@@ -728,25 +728,10 @@ plot_confusion(evaluation_a, "Modelo A")
 # | Cabeza de clasificación | Dropout de `0.2` antes de `Linear(512, 70)`. |
 #
 # La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
-# En la corrida definitiva usamos AdamW con tasa inicial `3e-4`, `weight_decay=1e-4`,
-# `CosineAnnealingLR`, *label smoothing* de `0.1` y lotes de 32 imágenes.
-
-# %% [markdown]
-# ### Experimentos registrados
+# Entrenamos usamos AdamW con tasa inicial `3e-4`, `weight_decay=1e-4`,
+# `Batch Size=32`, todos los hiperparámetros configurados por variables de entorno.
 #
-# | Prueba | Pregunta | Configuración | Partición | Observación | Decisión |
-# | --- | --- | --- | --- | --- | --- |
-# | Prueba local de CUDA | ¿La CNN puede completar una época con validación en GPU? | CNN desde cero, CUDA, 1 época, lote de 32 | `train_augmented` y `valid` anteriores al reparto por grupos | La época con validación terminó en 47,53 s y dejó un checkpoint y su historial. | Usar CUDA para el entrenamiento definitivo. La prueba sirve como comprobación técnica. |
-# | Corrida definitiva | ¿Qué rendimiento alcanza la CNN desde cero con el reparto por grupos? | Misma arquitectura, CUDA, hasta 12 épocas, lote de 32. Selección por F1 macro en `valid`. | Entrenamiento en `train_augmented`, selección en `valid` y evaluación en `test`, todos definitivos | El F1 macro de validación llegó a su máximo en la época 12. | Conservar ese checkpoint para evaluar la CNN y compararla con la ResNet bajo el mismo protocolo. |
-#
-# El historial de la primera prueba está en `output/cuda-prueba-20261126-212552/history_cnn_custom.json`.
-# El de la segunda se distribuye como `output/grupos-v1/history_cnn_custom.json`.
-# [Registro de particiones y checkpoints](splits/README.md#checkpoints-evaluados-y-pesos-anteriores).
-#
-# Los repartos difieren, así que una comparación de métricas entre las dos corridas
-# mezclaría el efecto de la partición con el de las épocas. El registro también conserva
-# el hash de otro checkpoint anterior. Las dos corridas de la tabla son las que cuentan
-# con historial por época para esta arquitectura.
+# Se entrena durante 100 épocas y se guarda el mejor modelo según la métrica de validación.
 
 # %%
 classifier.set_active_model("cnn_custom")
