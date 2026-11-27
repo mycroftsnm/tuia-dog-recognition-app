@@ -27,7 +27,7 @@
 # el kernel de la `.venv`. Se requieren los manifiestos de `splits/` y las imágenes
 # aumentadas de `data/dataset/augmented/`, generados por `1-pre-processing.py`.
 # El procedimiento de auditoría y reparto está en [splits/README.md](splits/README.md).
-# Para repetir la evaluación con los pesos descargados, configurá `%env MODEL_PATH=models` en la primera celda de código y conservá `%env OUTPUT_PATH=output/grupos-v1` para cargar los historiales. [Descargar modelos e historiales](#13-checkpoints)
+# Para repetir la evaluación, extraé el ZIP en la raíz del repositorio. La primera celda fija las rutas `models/` para los checkpoints y `output/grupos-v1/` para los historiales. [Descargar modelos e historiales](#13-checkpoints)
 
 # %% [markdown]
 # ## Equipo
