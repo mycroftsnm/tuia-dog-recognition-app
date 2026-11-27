@@ -128,6 +128,8 @@ Servicios disponibles: frontend en `http://localhost:8080`, backend en `http://l
 Con el dataset en `data/dataset`, ejecutá la notebook de preprocesamiento para generar
 `splits/train_augmented.csv` y las copias aumentadas. Docker Compose monta `splits/` en
 el backend y el indexador usa ese manifiesto para armar la misma galería que la notebook 2.
+El [registro de la partición](splits/README.md) documenta la auditoría, los descartes por
+etiquetas discordantes y los checkpoints de la partición anterior.
 
 Indexá la galería desde el contenedor del backend:
 

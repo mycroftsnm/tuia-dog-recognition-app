@@ -26,11 +26,12 @@
 import warnings
 from pathlib import Path
 
-import random
 import base64
 import hashlib
 import shutil
 import sys
+from tempfile import TemporaryDirectory
+from time import sleep
 
 import albumentations as A
 import altair as alt
@@ -142,6 +143,8 @@ else:
 #
 # Usamos el **70 Dog Breeds Image Dataset** ([Kaggle](https://www.kaggle.com/datasets/gpiosenka/70-dog-breedsimage-data-set)),
 # que ya viene particionado en `train/`, `valid/` y `test/` con una carpeta por raza.
+# Hasta la sección 3.7 esos nombres indican carpetas de origen. La partición final
+# se lee de los manifiestos y puede diferir del primer segmento de cada ruta.
 # La licencia publicada en Kaggle es **CC0: Public Domain**; igualmente conviene revisar
 # la página actual del dataset antes de cualquier uso comercial, porque los derechos de
 # las imágenes individuales pueden tener otra procedencia.
@@ -598,13 +601,13 @@ mostrar(
 
 
 # %% [markdown]
-# Para duplicados usamos **SHA-256** (archivos exactamente idénticos). Como el mismo archivo
-# puede aparecer en dos splits, conservamos la copia de valid/test y descartamos la de train:
-# así no reducimos los conjuntos de evaluación, que son chicos y fijos.
+# Para duplicados usamos **SHA-256** (archivos exactamente idénticos). El filtro conserva
+# una copia con el orden histórico de carpetas de Kaggle y registra los vínculos entre rutas.
+# La asignación final se vuelve a decidir en la sección 3.7.
 
 # %%
-# Marcamos duplicados exactos por SHA-256. Prioridad test > valid > train: si el mismo archivo
-# está en train y en test/valid, descartamos la copia de train (conservamos la de evaluación).
+# Marcamos duplicados exactos por SHA-256. La prioridad histórica de carpetas de origen
+# es test > valid > train.
 def mark_duplicates(candidates: pl.DataFrame, dataset_dir: Path) -> pl.DataFrame:
     """Devuelve `candidates` con `duplicate_of`, `duplicate_of_split` e `is_duplicate`."""
     if candidates.is_empty():
@@ -1183,129 +1186,126 @@ if audit_issues.is_empty() and not manifest.is_empty():
 # La grilla **Una foto de entrenamiento con ocho aumentos** aparece en 3.7, después de definir
 # la partición final de entrenamiento.
 
-# %%
-# Augmentation: solo train.
-from lib.augmentation import build_train_transform
-
-transform = build_train_transform(image_size=IMAGE_SIZE, seed=SEED)
-augmented = transform(image=sample_bgr)["image"]
-print(f"una imagen aumentada: {augmented.shape} {augmented.dtype} (BGR uint8)")
-
 # %% [markdown]
 # ## 3.7 Partición de datos
 #
-# Los splits se redefinen sobre el dataset de kaggle ya filtrado: **70 % train / 15 % valid / 15 % test**,
-# **balanceado por clase**. Para cada raza se mezcla y se asignan 15% a valid,
-# 15% a test y el resto a train.
+# El registro `splits/audit_pairs.csv` conserva las decisiones y huellas del contenido
+# de la auditoría histórica y las revisiones posteriores. Cada ruta relativa al
+# dataset identifica una foto con independencia del split de su manifiesto.
+# Las componentes transitivas incluyen los vínculos del filtro de calidad. Las
+# fotos sin vínculos son grupos individuales. El reparto asigna cada componente
+# íntegra con semilla 42 y apunta a 70/15/15 de originales por raza.
 #
-# Sobre el conjunto de train resultante, se aplica el pipeline de augmentation offline:
-# Se generan copias de las razas con menos
-# imágenes hasta que todas tengan la cantidad de la más numerosa, se escriben en
-# `data/dataset/augmented/` (no versionado) y se registran en `splits/train_augmented.csv`.
-#
-#
+# La coincidencia entre fotos permite agruparlas. Para resolver una discrepancia
+# de etiquetas haría falta evidencia verificable de la raza. Los grupos sin esa
+# evidencia se excluyen completos y se registran en `splits/audit_conflicts.csv`.
 
 # %%
-# Reparto 70/15/15 por clase, reproducible y balanceado.
-VALID_FRACTION = 0.15
-TEST_FRACTION = 0.15
+from lib.dataset_partition import (
+    SPLITS, crossing_groups, load_reviews, partition_originals, photo_groups, validate_manifests,
+)
+from lib.duplicate_audit import audit_search, classify_crossings
 
-
-def split_by_class(
-    df: pl.DataFrame,
-    valid_fraction: float = VALID_FRACTION,
-    test_fraction: float = TEST_FRACTION,
-    seed: int = SEED,
-) -> pl.DataFrame:
-    """Asigna train/valid/test por clase respetando las fracciones (mínimo 1 por split).
-
-    Cada raza se mezcla con una semilla propia (`seed + índice`) para que el reparto sea
-    reproducible e independiente del orden de las filas.
-    """
-    parts = []
-    for index, breed in enumerate(sorted(df["breed"].unique().to_list())):
-        group = df.filter(pl.col("breed") == breed)
-        shuffled = group.sample(n=group.height, shuffle=True, seed=seed + index)
-        n = shuffled.height
-        n_valid = max(1, int(round(valid_fraction * n)))
-        n_test = max(1, int(round(test_fraction * n)))
-        n_train = n - n_valid - n_test
-        if n_train < 1:  # clases muy chicas: se recortan valid/test
-            n_train = 1
-            n_valid = max(1, (n - 1) // 2)
-            n_test = n - 1 - n_valid
-        parts.append(
-            shuffled.with_row_index("pos")
-            .with_columns(
-                pl.when(pl.col("pos") < n_valid)
-                .then(pl.lit("valid"))
-                .when(pl.col("pos") < n_valid + n_test)
-                .then(pl.lit("test"))
-                .otherwise(pl.lit("train"))
-                .alias("split")
-            )
-            .drop("pos")
-        )
-    return pl.concat(parts).sort(["split", "breed", "path"])
-
+reviews = load_reviews(SPLITS_DIR / "audit_pairs.csv", DATASET_DIR)
+groups = photo_groups(quality, reviews)
+final, conflicts = partition_originals(quality, groups, SEED)
+manifests = {split: final.filter(pl.col("split") == split) for split in SPLITS}
+split_by_path = dict(final.select("path", "split").iter_rows())
+audit_paths = {split: manifest["path"].to_list() for split, manifest in manifests.items()}
+display(conflicts)
 
 # %%
-# Splits finales sobre el conjunto filtrado.
-final = split_by_class(accepted.select(["breed", "path", "filename"])).select(
-    ["split", "breed", "path", "filename"]
+audit_control = ("valid/Afghan/05.jpg", "train/Afghan/012.jpg")
+assert reviews[tuple(sorted(audit_control))]["decision"] == "confirmed"
+control_splits = [split_by_path[path] for path in audit_control]
+assert len(set(control_splits)) == 1, "El control Afghan se separó"
+control_gray = [cv2.imread(str(DATASET_DIR / path), cv2.IMREAD_GRAYSCALE) for path in audit_control]
+control_dhash = [int(dhash64(image), 16) for image in control_gray]
+control_distance = (control_dhash[0] ^ control_dhash[1]).bit_count()
+control_a, control_b = [small_gray(path, DATASET_DIR) for path in audit_control]
+control_corr = max(
+    correlation(control_a, np.roll(control_b, (dy, dx), axis=(0, 1)))
+    for dy in range(-3, 4)
+    for dx in range(-3, 4)
 )
-SPLITS_DIR.mkdir(parents=True, exist_ok=True)
+control_sha = [hashlib.sha256((DATASET_DIR / path).read_bytes()).digest() for path in audit_control]
 
-for split in ("train", "valid", "test"):
-    subset = final.filter(pl.col("split") == split)
-    subset.write_csv(SPLITS_DIR / f"{split}.csv")
-    print(f"{split}.csv: {subset.height} imágenes")
+figure, axes = plt.subplots(1, 2, figsize=(7, 3.7), layout="constrained")
+for ax, split, path in zip(axes, control_splits, audit_control, strict=True):
+    with Image.open(DATASET_DIR / path) as photo:
+        ax.imshow(photo.convert("RGB"))
+    ax.set_title(f"{split} final\n{path}", fontsize=10)
+    ax.axis("off")
+plt.show()
+display(pl.DataFrame([{
+    "SHA-256 iguales": control_sha[0] == control_sha[1],
+    "Distancia dHash": control_distance,
+    "Máximo dHash": DHASH_MAX_DISTANCE,
+    "Mejor correlación con ±3 px": round(control_corr, 4),
+    "Mínimo de correlación": SAME_PHOTO_MIN_CORR,
+}]))
 
-final.write_csv(SPLITS_DIR / "all.csv")
+# %% [markdown]
+# El control Afghan repite el perro, el perfil, el césped y el detalle del margen
+# derecho. Cambian la escala y la posición de mechones del pelo. Los bytes difieren.
+# Con una distancia dHash de **10**, el par queda fuera de la preselección de R5
+# (máximo **6**). La mejor correlación con desplazamientos de hasta ±3 px es
+# **0,8378** frente al mínimo de **0,99**. Ese ajuste solo traslada la imagen,
+# así que las diferencias de escala y encuadre reducen la correlación global.
+# La búsqueda local lo recuperó en la auditoría histórica. Ahora ambas rutas
+# aparecen en la misma partición final.
 
-discarded = (
-    quality.filter(pl.col("quality_rule") != "Pasa reglas visuales")
-    .select(["split", "breed", "path", "quality_rule", "duplicate_of", "duplicate_of_split"])
-    .rename({"split": "split_original"})
-    .sort(["split_original", "breed", "path"])
-)
-discarded.write_csv(SPLITS_DIR / "descartadas.csv")
-print(f"descartadas.csv: {discarded.height} imágenes (columna split_original)")
+# %% [markdown]
+# ### Auditoría de la nueva partición
+#
+# Se buscan pares entre todos los orígenes de cada cruce, sin restringir la raza.
+# La primera partición del cruce se usa como índice. Un par puede entrar por dos vías.
+#
+# - **Estructura local.** SIFT (128 puntos principales por foto a 224 × 224).
+#   Cada descriptor de la segunda partición busca sus 10 vecinos aproximados en
+#   FLANN (4 árboles, 40 comprobaciones). Cada punto da hasta un voto por foto
+#   vecina a distancia L2 ≤ 240. Desde 5 votos se verifica el par con distancias
+#   SIFT exactas (razón de Lowe < 0,78 y correspondencias únicas) y un ajuste
+#   de similitud por RANSAC con tolerancia de 3 px. Se requieren 6 puntos alineados
+#   y que la envolvente convexa ocupe al menos el 0,6 % de cada imagen
+#   (fracción de área redondeada a cuatro decimales).
+# - **Apariencia global.** Correlación ≥ 0,955 en gris a 12 × 12, comparando una
+#   imagen completa con la otra completa o con uno de sus nueve recortes al 80 %,
+#   en ambos sentidos. Esta vía también admite fotos con poca textura.
+#
+# Una coincidencia exacta de ruta o SHA-256 también entra como candidata.
+# Las decisiones previas se buscan por las dos rutas originales y sus hashes.
+# Si aparecen candidatos nuevos, se revisan lado a lado y se registra la decisión
+# en `splits/audit_pairs.csv`. Se repite el reparto y la búsqueda antes de publicar
+# los CSV y las copias aumentadas.
+#
+# Los conteos son un **mínimo observado**. FLANN aproxima vecinos y el ajuste
+# requiere textura compartida. Los recortes globales se limitan a una cuadrícula
+# fija. Pueden escapar reflejos, recortes fuertes y tomas con poco solapamiento
+# o cambios grandes de pose. El diagnóstico cubre cruces de los tres manifiestos,
+# por lo que quedan fuera los pares internos y el conjunto independiente.
 
-per_breed = final.group_by(["split", "breed"]).len()
-resumen_splits = (
-    per_breed.group_by("split")
-    .agg(
-        pl.len().alias("razas"),
-        pl.col("len").sum().alias("imágenes"),
-        pl.col("len").min().alias("mín por raza"),
-        pl.col("len").max().alias("máx por raza"),
-    )
-    .sort("split")
-)
-mostrar(resumen_splits)
-print(
-    "proporción: "
-    f"{ {row['split']: round(row['imágenes'] / final.height, 3) for row in resumen_splits.iter_rows(named=True)} }"
-)
+# %%
+audit_candidates, audit_checks = audit_search(audit_paths, DATASET_DIR, SEED)
+audit_review, audit_pending = classify_crossings(audit_candidates, reviews)
+display(audit_checks)
+display(audit_review)
+if not audit_pending.empty:
+    audit_pending_path = ROOT / "output" / "audit_pending.csv"
+    audit_pending_path.parent.mkdir(exist_ok=True)
+    audit_pending.to_csv(audit_pending_path, index=False, encoding="utf-8")
+    raise ValueError(f"Revisá {len(audit_pending)} pares en {audit_pending_path} antes de publicar.")
 
 # %% [markdown]
 # ### Una foto de entrenamiento con ocho aumentos (3.6)
 #
-# Elegimos una foto de Shih-Tzu del manifiesto final `splits/train.csv` por su ruta fija.
-# Aplicamos el pipeline de entrenamiento ocho veces, siempre a partir del original, con una
-# semilla fija y en memoria. Los rótulos indican las operaciones aplicadas en cada caso.
-#
-# La variante 3 invierte la orientación y las variantes 4 y 5 cambian la luz.
-# En todas se distinguen el hocico corto y el pelaje largo que enmarca la cara.
+# Se toma la primera ruta de Shih-Tzu del nuevo manifiesto de train. Cada variante
+# se genera en memoria a partir del original con una semilla fija.
 
 # %%
-preview_source = pl.read_csv(SPLITS_DIR / "train.csv").row(
-    by_predicate=(
-        (pl.col("split") == "train") & (pl.col("path") == "train/Shih-Tzu/112.jpg")
-    ),
-    named=True,
-)
+from lib.augmentation import build_train_transform
+
+preview_source = manifests["train"].filter(pl.col("breed") == "Shih-Tzu").sort("path").row(0, named=True)
 preview_bgr = cv2.imread(str(DATASET_DIR / preview_source["path"]))
 if preview_bgr is None:
     raise ValueError(f"No se pudo leer la foto de entrenamiento: {preview_source['path']}")
@@ -1340,14 +1340,12 @@ plt.show()
 
 
 # %%
-# Equilibramos train con augmentation: cada raza llega a la cantidad de la más numerosa.
-train_split = final.filter(pl.col("split") == "train")
+# Cada raza llega a la cantidad de la más numerosa en el nuevo train.
+
+train_split = manifests["train"]
 train_counts = train_split.group_by("breed").len().rename({"len": "images"})
 TRAIN_TARGET = int(train_counts["images"].max())
-
 AUGMENT_DIR = DATASET_DIR / "augmented" / "train"
-if AUGMENT_DIR.exists():
-    shutil.rmtree(AUGMENT_DIR)
 
 AUGMENTED_SCHEMA = {
     "split": pl.String,
@@ -1363,7 +1361,7 @@ def augment_to_balance(
     target: int,
     transform: A.Compose,
     dataset_dir: Path,
-    output_dir: Path,
+    staged_train: Path,
 ) -> pl.DataFrame:
     """Genera copias augmentadas por clase hasta llegar a `target` imágenes por raza.
 
@@ -1382,18 +1380,19 @@ def augment_to_balance(
             source = breed_rows[index % len(breed_rows)]
             image = cv2.imread(str(dataset_dir / source["path"]))
             if image is None:
-                continue
+                raise ValueError(f"No se pudo leer el original {source['path']}")
             augmented = transform(image=image)["image"]
-            dest_dir = output_dir / breed
+            dest_dir = staged_train / breed
             dest_dir.mkdir(parents=True, exist_ok=True)
             counter += 1
             dest = dest_dir / f"{counter:05d}_aug.jpg"
-            cv2.imwrite(str(dest), augmented, [cv2.IMWRITE_JPEG_QUALITY, 92])
+            if not cv2.imwrite(str(dest), augmented, [cv2.IMWRITE_JPEG_QUALITY, 92]):
+                raise OSError(f"No se pudo escribir {dest}")
             records.append(
                 {
                     "split": "train",
                     "breed": breed,
-                    "path": dest.relative_to(dataset_dir).as_posix(),
+                    "path": (Path("augmented/train") / breed / dest.name).as_posix(),
                     "filename": dest.name,
                     "origin": source["path"],
                 }
@@ -1401,30 +1400,104 @@ def augment_to_balance(
     return pl.from_dicts(records, schema=AUGMENTED_SCHEMA)
 
 
-print(
-    f"train: {train_split.height} imágenes | target por raza: {TRAIN_TARGET} | "
-    f"razas a aumentar: {train_counts.filter(pl.col('images') < TRAIN_TARGET).height}"
+def replace_augmentation_dir(source: Path, destination: Path) -> None:
+    """Reintenta el reemplazo si Windows mantiene abierto un archivo temporalmente."""
+    for attempt in range(6):
+        try:
+            source.replace(destination)
+            return
+        except PermissionError:
+            if attempt == 5:
+                raise
+            sleep(0.25 * (attempt + 1))
+
+
+# %%
+# Las exclusiones por razas discordantes se registran también como descartes.
+conflict_members = [path for group in conflicts["group"] for path in groups[group]]
+discarded = (
+    quality.with_columns(
+        pl.when(
+            pl.col("path").is_in(conflict_members) & (pl.col("quality_rule") == "Pasa reglas visuales")
+        )
+        .then(pl.lit("R6: Grupo con etiquetas de raza conflictivas"))
+        .otherwise(pl.col("quality_rule"))
+        .alias("quality_rule")
+    )
+    .filter(pl.col("quality_rule") != "Pasa reglas visuales")
+    .select(["split", "breed", "path", "quality_rule", "duplicate_of", "duplicate_of_split"])
+    .rename({"split": "split_original"})
+    .sort(["split_original", "breed", "path"])
 )
 
-train_augmented = augment_to_balance(
-    train_split, TRAIN_TARGET, transform, DATASET_DIR, AUGMENT_DIR
-)
+# Preparamos la publicación completa y validamos el linaje antes de reemplazar archivos.
+if AUGMENT_DIR.resolve() != DATASET_DIR.resolve() / "augmented" / "train":
+    raise ValueError(f"Directorio de aumentos redirigido: {AUGMENT_DIR}")
+AUGMENT_DIR.parent.mkdir(parents=True, exist_ok=True)
+with (
+    TemporaryDirectory(dir=AUGMENT_DIR.parent) as image_staging,
+    TemporaryDirectory(dir=SPLITS_DIR) as csv_staging,
+):
+    staged_train = Path(image_staging) / "train"
+    staged_train.mkdir()
+    train_augmented = augment_to_balance(
+        train_split, TRAIN_TARGET, build_train_transform(image_size=IMAGE_SIZE, seed=SEED),
+        DATASET_DIR, staged_train,
+    )
+    train_for_training = pl.concat(
+        [train_split.with_columns(pl.lit("original").alias("origin")), train_augmented]
+    ).sort(["breed", "path"])
+    validate_manifests(final, manifests, train_for_training, groups)
+    if train_for_training.group_by("breed").len()["len"].unique().to_list() != [TRAIN_TARGET]:
+        raise ValueError("Las razas de entrenamiento deben alcanzar el mismo total.")
 
-columns = ["split", "breed", "path", "filename", "origin"]
-train_for_training = pl.concat(
-    [
-        train_split.with_columns(pl.lit("original").alias("origin")).select(columns),
-        train_augmented.select(columns),
-    ]
-).sort(["breed", "path"])
-train_for_training.write_csv(SPLITS_DIR / "train_augmented.csv")
+    tables = {
+        **manifests, "all": final, "train_augmented": train_for_training,
+        "descartadas": discarded, "audit_conflicts": conflicts,
+    }
+    csv_staging = Path(csv_staging)
+    staged_manifests = {}
+    for name, table in tables.items():
+        staged = csv_staging / f"{name}.csv"
+        dest = SPLITS_DIR / staged.name
+        backup = csv_staging / f"{name}.previous"
+        table.write_csv(staged)
+        if dest.exists():
+            shutil.copyfile(dest, backup)
+        staged_manifests[dest] = staged, backup
 
-balance = train_for_training.group_by("breed").len()
-print(f"aumentadas: {train_augmented.height} imágenes")
-print(f"train_augmented.csv: {train_for_training.height} filas")
-print(f"por raza después: {balance['len'].min()}–{balance['len'].max()} (target {TRAIN_TARGET})")
-assert train_augmented["path"].n_unique() == train_augmented.height, "rutas aumentadas repetidas"
-assert train_for_training["path"].n_unique() == train_for_training.height, "rutas repetidas"
+    previous_train = Path(image_staging) / "previous"
+    if AUGMENT_DIR.exists():
+        replace_augmentation_dir(AUGMENT_DIR, previous_train)
+    replaced_manifests = []
+    try:
+        try:
+            replace_augmentation_dir(staged_train, AUGMENT_DIR)
+        except PermissionError:
+            shutil.copytree(staged_train, AUGMENT_DIR, copy_function=shutil.copyfile)
+        for dest, (staged, backup) in staged_manifests.items():
+            staged.replace(dest)
+            replaced_manifests.append((dest, backup))
+    except OSError:
+        for dest, backup in reversed(replaced_manifests):
+            if backup.exists():
+                backup.replace(dest)
+            else:
+                dest.unlink()
+        if AUGMENT_DIR.exists():
+            replace_augmentation_dir(AUGMENT_DIR, Path(image_staging) / "failed")
+        if previous_train.exists():
+            replace_augmentation_dir(previous_train, AUGMENT_DIR)
+        raise
+
+published = {name: pl.read_csv(SPLITS_DIR / f"{name}.csv") for name in (*SPLITS, "all", "train_augmented")}
+validate_manifests(published["all"], published, published["train_augmented"], groups)
+copies_on_disk = {path.relative_to(DATASET_DIR).as_posix() for path in AUGMENT_DIR.rglob("*") if path.is_file()}
+if copies_on_disk != set(train_augmented["path"]):
+    raise ValueError("Las copias en disco difieren de las rutas aumentadas en el manifiesto.")
+
+print(f"Objetivo de train: {TRAIN_TARGET} imágenes por raza.")
+print(f"Aumentos: {train_augmented.height} copias con {train_augmented['origin'].n_unique()} orígenes.")
 
 # %%
 # Distribución por clase antes y después: el augmentation empareja todas las razas.
@@ -1455,8 +1528,11 @@ display(balance_chart)
 
 # %%
 # Las copias generadas vienen de imágenes distintas (no son N versiones de la misma foto).
-sample_aug = train_augmented.sample(n=8, seed=SEED)
+sample_origins = train_augmented.unique(subset="origin", maintain_order=True)
+sample_aug = sample_origins.sample(n=min(8, sample_origins.height), seed=SEED)
 figure, axes = plt.subplots(2, 4, figsize=(15, 7.5), squeeze=False)
+for ax in axes.flat:
+    ax.axis("off")
 for ax, row in zip(axes.flat, sample_aug.iter_rows(named=True)):
     with Image.open(DATASET_DIR / row["path"]) as image:
         ax.imshow(image.convert("RGB"))
@@ -1468,577 +1544,6 @@ plt.show()
 
 size_mb = sum(path.stat().st_size for path in AUGMENT_DIR.rglob("*.jpg")) / 1e6
 print(f"{AUGMENT_DIR.relative_to(ROOT)} → {size_mb:.0f} MB")
-
-# %% [markdown]
-# ### Auditoría de fuga entre los splits finales
-#
-# El nombre de cada manifiesto da la partición final. El prefijo de la ruta indica
-# la carpeta original de Kaggle. Para train_augmented.csv, cada fila con
-# origin = "original" se representa por su propia ruta, y cada copia aumentada
-# por la ruta de origin. Cada foto de origen cuenta una vez.
-#
-# Para reproducir el diagnóstico, abrí la notebook desde la raíz del repo con
-# el kernel de la .venv. Ejecutá **Configuración global**, la celda que empieza
-# con DHASH_MAX_DISTANCE en 3.3 y todas las celdas de esta subsección.
-
-# %%
-from collections import Counter, defaultdict
-from concurrent.futures import ThreadPoolExecutor
-from threading import local
-from typing import NamedTuple
-
-import pandas as pd
-from IPython.display import HTML
-from threadpoolctl import threadpool_limits
-
-audit_splits = ("train", "valid", "test")
-audit_crosses = (("train", "valid"), ("train", "test"), ("valid", "test"))
-audit_manifests = {
-    split: pl.read_csv(SPLITS_DIR / f"{split}.csv").sort("path")
-    for split in audit_splits
-}
-audit_gallery = pl.read_csv(SPLITS_DIR / "train_augmented.csv").with_columns(
-    pl.when(pl.col("origin") == "original")
-    .then(pl.col("path"))
-    .otherwise(pl.col("origin"))
-    .alias("source_path")
-)
-audit_paths = {}
-for split, manifest in audit_manifests.items():
-    if set(manifest["split"]) != {split} or manifest["path"].n_unique() != manifest.height:
-        raise ValueError(f"Partición inesperada o rutas repetidas dentro de {split}.csv")
-    audit_paths[split] = manifest["path"].to_list()
-
-train_origins = audit_manifests["train"].select(pl.col("path").alias("source_path"), "breed")
-untraced = audit_gallery.join(train_origins, on=["source_path", "breed"], how="anti")
-if (
-    set(audit_gallery["split"]) != {"train"}
-    or audit_gallery["path"].n_unique() != audit_gallery.height
-    or not untraced.is_empty()
-    or set(audit_gallery["source_path"]) != set(audit_paths["train"])
-):
-    raise ValueError("Las filas de train_augmented.csv deben cubrir los orígenes de train.csv y respetar su raza.")
-
-audit_augmentations = audit_gallery.filter(pl.col("origin") != "original")
-display(pd.DataFrame([{
-    "train (orígenes)": len(audit_paths["train"]),
-    "valid": len(audit_paths["valid"]),
-    "test": len(audit_paths["test"]),
-    "filas de train_augmented": audit_gallery.height,
-    "copias aumentadas": audit_augmentations.height,
-    "orígenes con aumentos": audit_augmentations["source_path"].n_unique(),
-}]))
-
-# %%
-audit_control = ("valid/Afghan/05.jpg", "train/Afghan/012.jpg")
-assert audit_control[0] in audit_paths["train"] and audit_control[1] in audit_paths["test"]
-control_gray = [cv2.imread(str(DATASET_DIR / path), cv2.IMREAD_GRAYSCALE) for path in audit_control]
-control_dhash = [int(dhash64(image), 16) for image in control_gray]
-control_distance = (control_dhash[0] ^ control_dhash[1]).bit_count()
-control_a, control_b = [small_gray(path, DATASET_DIR) for path in audit_control]
-control_corr = max(
-    correlation(control_a, np.roll(control_b, (dy, dx), axis=(0, 1)))
-    for dy in range(-3, 4)
-    for dx in range(-3, 4)
-)
-control_sha = [hashlib.sha256((DATASET_DIR / path).read_bytes()).digest() for path in audit_control]
-
-figure, axes = plt.subplots(1, 2, figsize=(7, 3.7), layout="constrained")
-for ax, split, path in zip(axes, ("train", "test"), audit_control):
-    with Image.open(DATASET_DIR / path) as photo:
-        ax.imshow(photo.convert("RGB"))
-    ax.set_title(f"{split} final\n{path}", fontsize=10)
-    ax.axis("off")
-plt.show()
-display(pd.DataFrame([{
-    "SHA-256 iguales": control_sha[0] == control_sha[1],
-    "Distancia dHash": control_distance,
-    "Máximo dHash": DHASH_MAX_DISTANCE,
-    "Mejor correlación con ±3 px": round(control_corr, 4),
-    "Mínimo de correlación": SAME_PHOTO_MIN_CORR,
-}]))
-
-# %% [markdown]
-# El control Afghan repite el perro, el perfil, el césped y el detalle del margen
-# derecho. Cambian la escala y la posición de mechones del pelo. Los bytes difieren.
-# Con una distancia dHash de **10**, el par queda fuera de la preselección de R5
-# (máximo **6**). La mejor correlación con desplazamientos de hasta ±3 px es
-# **0,8378** frente al mínimo de **0,99**. Ese ajuste solo traslada la imagen,
-# así que las diferencias de escala y encuadre reducen la correlación global.
-# La búsqueda local recupera el control sin agregarlo a mano.
-
-# %% [markdown]
-# #### Selección de candidatos
-#
-# Se buscan pares entre todos los orígenes de cada cruce, sin restringir la raza.
-# La primera partición del cruce se usa como índice. Un par puede entrar por dos vías.
-#
-# - **Estructura local.** SIFT (128 puntos principales por foto a 224 × 224).
-#   Cada descriptor de la segunda partición busca sus 10 vecinos aproximados en
-#   FLANN (4 árboles, 40 comprobaciones). Cada punto da hasta un voto por foto
-#   vecina a distancia L2 ≤ 240. Desde 5 votos se verifica el par con distancias
-#   SIFT exactas (razón de Lowe < 0,78 y correspondencias únicas) y un ajuste
-#   de similitud por RANSAC con tolerancia de 3 px. Se requieren 6 puntos alineados
-#   y que la envolvente convexa ocupe al menos el 0,6 % de cada imagen
-#   (fracción de área redondeada a cuatro decimales).
-# - **Apariencia global.** Correlación ≥ 0,955 en gris a 12 × 12, comparando una
-#   imagen completa con la otra completa o con uno de sus nueve recortes al 80 %,
-#   en ambos sentidos. Esta vía también admite fotos con poca textura.
-#
-# Una coincidencia exacta de ruta o de SHA-256 también entra como candidata
-# y se cuenta en la verificación de fuga.
-#
-# Los conteos son un **mínimo observado**. FLANN aproxima vecinos y el ajuste
-# requiere textura compartida. Los recortes globales se limitan a una cuadrícula
-# fija. Pueden escapar reflejos, recortes fuertes y tomas con poco solapamiento
-# o cambios grandes de pose. El diagnóstico cubre cruces de los tres manifiestos,
-# por lo que quedan fuera los pares internos y el conjunto independiente.
-
-# %%
-class AuditPhoto(NamedTuple):
-    points: np.ndarray
-    descriptors: np.ndarray | None
-    views: np.ndarray
-    sha256: str
-
-
-audit_workers = local()
-AUDIT_SIZE = 224
-
-
-def audit_describe(path):
-    if not hasattr(audit_workers, "sift"):
-        audit_workers.sift = cv2.SIFT_create(nfeatures=128)
-    raw = (DATASET_DIR / path).read_bytes()
-    image = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
-    if image is None:
-        raise ValueError(f"No se pudo leer {path}")
-    gray = cv2.resize(image, (AUDIT_SIZE, AUDIT_SIZE), interpolation=cv2.INTER_AREA)
-    points, descriptors = audit_workers.sift.detectAndCompute(gray, None)
-    points = np.float32([point.pt for point in points])
-
-    crop = round(AUDIT_SIZE * 0.8)
-    margin = AUDIT_SIZE - crop
-    offsets = (0, margin // 2, margin)
-    crops = [gray[y:y + crop, x:x + crop] for y in offsets for x in offsets]
-    views = np.float32([
-        cv2.resize(view, (12, 12), interpolation=cv2.INTER_AREA).ravel()
-        for view in [gray, *crops]
-    ])
-    views -= views.mean(axis=1, keepdims=True)
-    views /= np.maximum(np.linalg.norm(views, axis=1, keepdims=True), 1)
-    return AuditPhoto(points, descriptors, views, hashlib.sha256(raw).hexdigest())
-
-
-def audit_global_candidates(database, queries):
-    left, right = (np.stack([photo.views for photo in photos]) for photos in (database, queries))
-    n_images, n_views, dimensions = left.shape
-    all_left = left.reshape(-1, dimensions)
-    with threadpool_limits(limits=4, user_api="blas"):
-        for start in range(0, len(right), 64):
-            batch = right[start:start + 64]
-            cropped_left = (all_left @ batch[:, 0, :].T).reshape(n_images, n_views, -1)
-            cropped_right = (left[:, 0, :] @ batch.reshape(-1, dimensions).T).reshape(
-                n_images, -1, n_views
-            )
-            scores = np.maximum(cropped_left.max(axis=1), cropped_right.max(axis=2))
-            for i, j in zip(*np.nonzero(scores >= 0.955)):
-                yield (int(i), start + int(j)), float(scores[i, j])
-
-
-def audit_sift_shortlist(database, queries):
-    indexed = [photo.descriptors for photo in database if photo.descriptors is not None]
-    if not indexed:
-        return
-    vectors = np.concatenate(indexed)
-    owners = np.repeat(np.arange(len(database)), [len(photo.points) for photo in database])
-    index = cv2.flann_Index(vectors, dict(algorithm=1, trees=4))
-    for j, photo in enumerate(queries):
-        if photo.descriptors is None:
-            continue
-        hits, distances = index.knnSearch(photo.descriptors, min(10, len(vectors)), params=dict(checks=40))
-        votes = Counter()
-        for neighbors in np.where(distances <= 240**2, owners[hits], -1):
-            votes.update(set(neighbors) - {-1})
-        for i, n_votes in votes.items():
-            if n_votes >= 5:
-                yield int(i), j
-
-
-def audit_local_fit(left, right):
-    if min(len(left.points), len(right.points)) < 2:
-        return 0, 0., None
-    matches = [
-        first for first, second in cv2.BFMatcher().knnMatch(right.descriptors, left.descriptors, k=2)
-        if first.distance < 0.78 * second.distance
-    ]
-    unique = {match.trainIdx: match for match in sorted(matches, key=lambda match: -match.distance)}
-    if len(unique) < 4:
-        return 0, 0., None
-    src = np.float32([right.points[match.queryIdx] for match in unique.values()])
-    dst = np.float32([left.points[match.trainIdx] for match in unique.values()])
-    matrix, mask = cv2.estimateAffinePartial2D(
-        src, dst, method=cv2.RANSAC, ransacReprojThreshold=3, maxIters=1000
-    )
-    if matrix is None:
-        return 0, 0., None
-    inliers = mask.ravel().astype(bool)
-    area = min(cv2.contourArea(cv2.convexHull(points[inliers])) for points in (src, dst))
-    return int(inliers.sum()), round(area / AUDIT_SIZE**2, 4), float(np.hypot(*matrix[:, 0]))
-
-
-def audit_search(paths):
-    all_paths = sorted(set().union(*paths.values()))
-    previous_threads = cv2.getNumThreads()
-    cv2.setNumThreads(1)
-    cv2.setRNGSeed(SEED)
-    candidates = []
-    checks = []
-    try:
-        with ThreadPoolExecutor(max_workers=6) as pool:
-            photos = dict(zip(all_paths, pool.map(audit_describe, all_paths)))
-        for left_split, right_split in audit_crosses:
-            left_paths, right_paths = paths[left_split], paths[right_split]
-            left = [photos[path] for path in left_paths]
-            right = [photos[path] for path in right_paths]
-            left_sha = defaultdict(list)
-            for i, photo in enumerate(left):
-                left_sha[photo.sha256].append(i)
-            exact = {
-                (i, j)
-                for j, photo in enumerate(right)
-                for i in left_sha.get(photo.sha256, ())
-            }
-            global_matches = dict(audit_global_candidates(left, right))
-            local_shortlist = set(audit_sift_shortlist(left, right))
-            visual = global_matches.keys() | local_shortlist
-            cross = f"{left_split}–{right_split}"
-            checks.append({
-                "Cruce": cross,
-                "Pares posibles": len(left) * len(right),
-                "Rutas compartidas": len(set(left_paths) & set(right_paths)),
-                "Pares SHA-256 idénticos": len(exact),
-                "Preselección visual": len(visual),
-            })
-            for i, j in sorted(visual | exact):
-                inliers, area, scale = audit_local_fit(left[i], right[j])
-                if (inliers >= 6 and area >= 0.006) or (i, j) in global_matches or (i, j) in exact:
-                    candidates.append({
-                        "Cruce": cross,
-                        "Ruta A": left_paths[i],
-                        "Ruta B": right_paths[j],
-                        "Puntos alineados": inliers,
-                        "Área SIFT": area,
-                        "Escala B → A": round(scale, 3) if scale is not None else None,
-                        "Correlación global": round(global_matches.get((i, j), np.nan), 4),
-                        "SHA-256 igual": (i, j) in exact,
-                    })
-    finally:
-        cv2.setNumThreads(previous_threads)
-    return pd.DataFrame(candidates), pd.DataFrame(checks)
-
-
-audit_candidates, audit_checks = audit_search(audit_paths)
-display(audit_checks)
-
-# %% [markdown]
-# #### Segunda revisión visual de los siete pares dudosos
-#
-# Cada fila muestra las dos fotos del par, sus rutas y su split final. La grilla
-# queda guardada en la notebook y se puede volver a dibujar ejecutando esta celda
-# por separado desde la raíz del repositorio.
-
-# %%
-from pathlib import Path
-
-import matplotlib.pyplot as plt
-from PIL import Image
-
-audit_followup = [
-    tuple(line.split("|", 3))
-    for line in """
-train–valid|test/Komondor/09.jpg|train/Komondor/098.jpg|Coinciden las mechas, el hocico y la lengua. El fondo amarillo uniforme de la izquierda es compatible con un recorte del perro y un reemplazo de fondo.
-train–valid|train/Bull Mastiff/058.jpg|valid/Bull Mastiff/05.jpg|Coinciden los pliegues de la frente y el hocico. La foto izquierda parece comprimida horizontalmente. La derecha muestra un acercamiento a la cara.
-train–valid|train/Cocker/019.jpg|valid/Cocker/06.jpg|Coinciden la forma del hocico, los mechones de las orejas y el pelaje del pecho. La foto derecha tiene un encuadre más cerrado y mayor contraste.
-train–valid|train/Rhodesian/017.jpg|test/Rhodesian/03.jpg|Coinciden la mancha blanca del pecho, las patas y la postura. La versión derecha tiene proporciones más anchas y la cola queda fuera del recorte.
-train–valid|train/Rhodesian/017.jpg|train/Rhodesian/120.jpg|Coinciden la mancha del pecho, las patas y la postura. La versión derecha tiene un encuadre más cerrado y proporciones más anchas.
-train–test|train/American Spaniel/85.jpg|train/American Spaniel/83.jpg|Coinciden el perfil, el pelo de la oreja y el césped. La foto de la izquierda acerca la cara. La de la derecha tiene menor nitidez y marcas de agua.
-train–test|train/Chihuahua/091.jpg|train/Chihuahua/090.jpg|Coinciden las orejas, el hocico y detalles desenfocados del fondo. Cambian la escala y las proporciones del encuadre.
-""".strip().splitlines()
-]
-pair_number = 0
-for cross in ("train–test", "train–valid"):
-    pairs = [(a, b) for pair_cross, a, b, _ in audit_followup if pair_cross == cross]
-    figure, axes = plt.subplots(
-        len(pairs), 2, figsize=(7.6, 3.1 * len(pairs)),
-        squeeze=False, layout="constrained",
-    )
-    for (path_a, path_b), row_axes in zip(pairs, axes, strict=True):
-        pair_number += 1
-        for axis, split, path in zip(row_axes, cross.split("–"), (path_a, path_b), strict=True):
-            with Image.open(Path("data/dataset") / path) as photo:
-                axis.imshow(photo.convert("RGB"), interpolation="nearest")
-            label = f"Par {pair_number} · {split} final" if split == "train" else f"{split} final"
-            axis.set_title(f"{label}\n{path}", fontsize=9)
-            axis.axis("off")
-    plt.show()
-
-# %% [markdown]
-# **Conclusiones de la segunda revisión**
-#
-# Confirmamos los siete pares como variantes de una misma foto de origen.
-#
-# 1. **American Spaniel.** Coinciden el perfil, el pelo de la oreja y el césped. La foto de la izquierda acerca la cara. La de la derecha tiene menor nitidez y marcas de agua.
-# 2. **Chihuahua.** Coinciden las orejas, el hocico y detalles desenfocados del fondo. Cambian la escala y las proporciones del encuadre.
-# 3. **Komondor.** Coinciden las mechas, el hocico y la lengua. El fondo amarillo uniforme de la izquierda es compatible con un recorte del perro y un reemplazo de fondo.
-# 4. **Bull Mastiff.** Coinciden los pliegues de la frente y el hocico. La foto izquierda parece comprimida horizontalmente. La derecha muestra un acercamiento a la cara.
-# 5. **Cocker.** Coinciden la forma del hocico, los mechones de las orejas y el pelaje del pecho. La foto derecha tiene un encuadre más cerrado y mayor contraste.
-# 6. **Rhodesian (consulta 03.jpg).** Coinciden la mancha blanca del pecho, las patas y la postura. La versión derecha tiene proporciones más anchas y la cola queda fuera del recorte.
-# 7. **Rhodesian (consulta 120.jpg).** Coinciden la mancha del pecho, las patas y la postura. La versión derecha tiene un encuadre más cerrado y proporciones más anchas.
-
-# %% [markdown]
-# #### Revisión visual y alcance
-#
-# Se revisaron los candidatos lado a lado. Se confirmó una misma foto con otro
-# recorte, escala, edición o compresión, y también tomas casi idénticas cuando
-# coinciden el animal y detalles de la escena. Un par queda **dudoso** si esos
-# detalles no alcanzan para resolver el origen común. Los **descartados** muestran
-# diferencias de escena, pose o rasgos que exceden el criterio.
-#
-# La búsqueda genera la lista de pares. La huella identifica los pares revisados
-# y el contenido de sus fotos. Si coincide, se aplican las decisiones guardadas.
-# La segunda revisión resolvió los siete pares que habían quedado dudosos.
-# Un cambio en esos pares o fotos exige repetir la revisión antes de publicar
-# los conteos.
-
-# %%
-# Registro breve de descartes y de la segunda revisión visual.
-import json
-
-audit_keys = ["Cruce", "Ruta A", "Ruta B"]
-audit_reviewed_signature = "7ef8c29886bbb98a6516df3f5c61f2b7b6fda82447f38e13f9c4533bd096ab0c"
-
-
-def audit_signature(candidates):
-    pairs = sorted(candidates[audit_keys].itertuples(index=False, name=None))
-    paths = sorted({path for _, path_a, path_b in pairs for path in (path_a, path_b)})
-    signature = hashlib.sha256(json.dumps(pairs, ensure_ascii=False).encode("utf-8"))
-    for path in paths:
-        signature.update(hashlib.sha256((DATASET_DIR / path).read_bytes()).digest())
-    return signature.hexdigest()
-
-
-if audit_signature(audit_candidates) != audit_reviewed_signature:
-    raise ValueError("Cambió el conjunto de pares revisado o sus fotos. Hace falta una nueva revisión visual.")
-
-audit_notes = """
-train–valid|train/Boston Terrier/45.jpg|train/Boston Terrier/25.jpg|Descartado|Distinta forma de orejas y cabeza, y postura diferente.
-train–valid|train/Great Perenees/13.jpg|train/Komondor/072.jpg|Descartado|Coinciden la alfombra y las flores del evento. En primer plano aparecen perros distintos.
-train–test|train/Pit Bull/057.jpg|train/Pit Bull/123.jpg|Descartado|Poses y fondos distintos. La mancha del pecho por sí sola no verifica una toma casi idéntica.
-train–test|train/Pug/071.jpg|train/Pug/037.jpg|Descartado|Cambian el contorno de los ojos, las orejas y las arrugas del hocico.
-train–test|valid/Japanese Spaniel/09.jpg|train/Japanese Spaniel/068.jpg|Descartado|Distintos patrones de pelaje, pose y entorno.
-valid–test|train/Bichon Frise/046.jpg|train/Bichon Frise/067.jpg|Descartado|Cambian la cara, el fondo y la postura. Coincide el corte del pelo.
-valid–test|train/Chow/023.jpg|train/Chow/047.jpg|Descartado|Fondos y postura de las patas diferentes. Coincide el parecido facial.
-valid–test|train/Corgi/092.jpg|train/Corgi/093.jpg|Descartado|Postura, expresión y escenario diferentes pese al parecido de la franja frontal.
-valid–test|train/Labrador/137.jpg|train/Labrador/131.jpg|Descartado|Una toma de pie y otra recostada. La coincidencia se concentra en el retrato.
-""".strip()
-audit_review_notes = pd.DataFrame(
-    [line.split("|", 4) for line in audit_notes.splitlines()]
-    + [(cross, a, b, "Confirmado", note) for cross, a, b, note in audit_followup],
-    columns=[*audit_keys, "Decisión", "Observación"],
-)
-audit_review = audit_candidates.merge(
-    audit_review_notes,
-    on=audit_keys,
-    how="left",
-    validate="one_to_one",
-)
-audit_review["Decisión"] = audit_review["Decisión"].fillna("Confirmado")
-audit_review["Observación"] = audit_review["Observación"].fillna(
-    "Coinciden rasgos distintivos y detalles de la toma."
-)
-audit_confirmed = audit_review.loc[audit_review["Decisión"] == "Confirmado"]
-assert ((audit_confirmed["Ruta A"] == audit_control[0]) & (audit_confirmed["Ruta B"] == audit_control[1])).any()
-
-# Componentes conexas de pares confirmados. Cada nodo incluye la partición final.
-audit_neighbors = defaultdict(set)
-for cross, path_a, path_b in audit_confirmed[audit_keys].itertuples(index=False, name=None):
-    left_split, right_split = cross.split("–")
-    left, right = (left_split, path_a), (right_split, path_b)
-    audit_neighbors[left].add(right)
-    audit_neighbors[right].add(left)
-
-audit_group_by_image = {}
-audit_groups = {}
-for root in sorted(audit_neighbors):
-    if root in audit_group_by_image:
-        continue
-    group = f"G{len(audit_groups) + 1:03d}"
-    members = {root}
-    frontier = [root]
-    while frontier:
-        unseen = audit_neighbors[frontier.pop()] - members
-        members.update(unseen)
-        frontier.extend(unseen)
-    audit_groups[group] = members
-    audit_group_by_image.update(dict.fromkeys(members, group))
-
-audit_review["Grupo"] = [
-    audit_group_by_image[(cross.split("–")[0], path_a)] if decision == "Confirmado" else ""
-    for cross, path_a, decision in audit_review[["Cruce", "Ruta A", "Decisión"]].itertuples(
-        index=False, name=None
-    )
-]
-
-
-def audit_paths_in_cross(pairs, split):
-    paths = set()
-    for column, side in (("Ruta A", 0), ("Ruta B", 1)):
-        in_split = pairs["Cruce"].str.split("–").str[side] == split
-        paths.update(pairs.loc[in_split, column])
-    return paths
-
-
-audit_summary_rows = []
-for left_split, right_split in audit_crosses:
-    cross = f"{left_split}–{right_split}"
-    pairs = audit_review.loc[audit_review["Cruce"] == cross]
-    confirmed = pairs.loc[pairs["Decisión"] == "Confirmado"]
-    audit_summary_rows.append({
-        "Cruce": cross,
-        "Candidatos": len(pairs),
-        "Pares confirmados": len(confirmed),
-        "Grupos confirmados": confirmed["Grupo"].nunique(),
-        "Dudosos": int(pairs["Decisión"].eq("Dudoso").sum()),
-        "Descartados": int(pairs["Decisión"].eq("Descartado").sum()),
-        "Valid únicas": len(audit_paths_in_cross(confirmed, "valid")),
-        "Test únicas": len(audit_paths_in_cross(confirmed, "test")),
-    })
-audit_summary = pd.DataFrame(audit_summary_rows)
-display(audit_summary)
-
-# %% [markdown]
-# Un grupo es una componente conexa de pares confirmados. Un grupo con miembros
-# en tres particiones puede aparecer en varios cruces. Las columnas de imágenes
-# únicas cuentan las rutas de valid y test que son extremo de algún par confirmado
-# de ese cruce. La tabla de exclusiones cuenta cada foto una vez entre todos los
-# cruces y usa la componente completa.
-
-# %%
-import re
-
-
-def audit_show_table(table):
-    markup = table.to_html(index=False, na_rep="—")
-    # Una línea por fila de datos en el JSON de la notebook.
-    markup = re.sub(r">[ \t]*\n[ \t]*<(?=(?:td|th)\b|/tr>)", "><", markup)
-    display(HTML(f'<div style="max-height:460px;overflow:auto">{markup}</div>'))
-
-
-audit_review_sorted = audit_review.sort_values(["Cruce", "Decisión", "Grupo", "Ruta A", "Ruta B"])
-for left_split, right_split in audit_crosses:
-    cross = f"{left_split}–{right_split}"
-    display(HTML(f"<h5>{cross}</h5>"))
-    audit_show_table(audit_review_sorted.loc[audit_review_sorted["Cruce"] == cross])
-
-# %%
-# Cada recuadro muestra las dos fotos de un par.
-audit_grid_examples = [
-    ('train/Golden Retriever/048.jpg', 'train/Labrador/102.jpg'),
-    ('train/Pug/071.jpg', 'train/Pug/037.jpg'),
-    ('train/Airedale/109.jpg', 'train/Airedale/064.jpg'),
-    ('train/Bichon Frise/046.jpg', 'train/Bichon Frise/067.jpg'),
-    ('test/Boston Terrier/03.jpg', 'valid/Boston Terrier/03.jpg'),
-    ('train/Labrador/137.jpg', 'train/Labrador/131.jpg'),
-]
-figure = plt.figure(figsize=(11, 9), layout="constrained")
-panels = figure.subfigures(3, 2)
-for number, (panel, (path_a, path_b)) in enumerate(
-    zip(panels.flat, audit_grid_examples, strict=True), 1
-):
-    row = audit_review.loc[(audit_review["Ruta A"] == path_a) & (audit_review["Ruta B"] == path_b)].iloc[0]
-    panel.suptitle(f"Ejemplo {number}", fontsize=10)
-    for ax, split, path in zip(panel.subplots(1, 2), row["Cruce"].split("–"), (path_a, path_b), strict=True):
-        with Image.open(DATASET_DIR / path) as photo:
-            ax.imshow(photo.convert("RGB"))
-        ax.set_title(f"{split} final\n{path}", fontsize=8)
-        ax.axis("off")
-plt.show()
-
-# %% [markdown]
-# **Conclusiones de los ejemplos**
-#
-# 1. **Confirmado · Golden Retriever y Labrador.** Coinciden los rasgos del perro, la posición de la lengua y el fondo. Las fotos tienen recortes y etiquetas distintos.
-# 2. **Descartado · Pug.** Cambian el contorno de los ojos, las orejas y los pliegues del hocico.
-# 3. **Confirmado · Airedale.** Coinciden el perro y los detalles del jardín, incluido el muro de piedra. Cambia el encuadre.
-# 4. **Descartado · Bichon Frise.** El corte del pelo es parecido. La cara, la postura y el fondo difieren.
-# 5. **Confirmado · Boston Terrier.** Coinciden la postura y las marcas del cachorro. Una versión tiene el fondo reemplazado por blanco.
-# 6. **Descartado · Labrador.** Un perro está de pie y el otro recostado. El parecido se concentra en el retrato.
-
-# %%
-audit_exclusions = []
-for group, members in audit_groups.items():
-    member_splits = {split for split, _ in members}
-    for split, path in sorted(members):
-        reference_splits = {"train"} if split == "valid" else {"train", "valid"}
-        overlap = reference_splits & member_splits
-        if split in {"valid", "test"} and overlap:
-            audit_exclusions.append({
-                "Partición": split,
-                "Ruta": path,
-                "Grupo": group,
-                "Solapa con": ", ".join(sorted(overlap)),
-            })
-
-audit_exclusion_table = pd.DataFrame(audit_exclusions).sort_values(["Partición", "Grupo", "Ruta"])
-audit_doubtful = audit_review.loc[audit_review["Decisión"].eq("Dudoso")]
-audit_exclusion_rows = []
-for split in ("valid", "test"):
-    excluded = set(audit_exclusion_table.loc[audit_exclusion_table["Partición"] == split, "Ruta"])
-    additional = audit_paths_in_cross(audit_doubtful, split) - excluded
-    total = len(audit_paths[split])
-    audit_exclusion_rows.append({
-        "Partición": split,
-        "Originales": total,
-        "Excluir por fuga confirmada": len(excluded),
-        "Dudosas adicionales": len(additional),
-        "Disponibles tras exclusiones confirmadas": total - len(excluded),
-    })
-audit_exclusion_counts = pd.DataFrame(audit_exclusion_rows)
-print(f"Grupos confirmados distintos entre los tres cruces: {len(audit_groups)}")
-display(audit_exclusion_counts)
-audit_show_table(audit_exclusion_table)
-
-# %% [markdown]
-# #### Siguiente corrida de evaluación
-#
-# La segunda revisión confirmó los siete pares que estaban en duda. Los cambios
-# de encuadre, proporciones, nitidez y fondo son compatibles con ediciones de la
-# foto de origen. De los 405 candidatos, quedan **396 pares confirmados** en
-# **296 grupos** y **9 descartados**. La columna de dudosos queda en cero para
-# los pares encontrados por esta búsqueda.
-#
-# Con los checkpoints existentes, excluir de validación los miembros de grupos con
-# train y de test los miembros de grupos con train o con la validación que se usó
-# para seleccionar los checkpoints. La tabla anterior identifica **151 fotos de
-# valid y 166 de test** para excluir. Quedan **1.228 y 1.213 consultas**,
-# respectivamente. Para una nueva partición, asignar cada grupo completo a un solo
-# split, revisar las etiquetas discordantes y mantener los aumentos con su foto
-# de origen.
-#
-# - **Baseline de similitud, sección 3 de 2-train.ipynb.** Recalibrar el rechazo
-#   para cosine y l2 y rehacer la tabla de calibración (K=5 y K=10) con la
-#   validación filtrada. Recalcular NDCG@10,
-#   precision@10, accuracy de raza y tasa de unknown de test, sus distribuciones
-#   y ejemplos, incluido el acierto Afghan. Aplicar el umbral recalibrado a las
-#   predicciones del conjunto independiente. Si se reagrupa la galería, volver a
-#   calcular también los rankings de ese conjunto con la galería corregida.
-# - **Modelos A y B, secciones 6 y 7.** Volver a medir accuracy, precision,
-#   recall, specificity y F1 macro, y actualizar matrices de confusión, métricas
-#   por raza y ejemplos de error sobre las mismas consultas filtradas. Tratar las
-#   curvas originales de validación como historial de la selección ya realizada.
-#   Una selección de checkpoint sobre una validación limpia requiere reagrupar
-#   antes de un nuevo entrenamiento.
 
 # %% [markdown]
 # ## 3.8 Licencias y uso de imágenes
@@ -2055,24 +1560,29 @@ audit_show_table(audit_exclusion_table)
 
 # %%
 # Tabla resumen final del dataset curado.
-print("Dataset final")
+resumen_splits = pl.DataFrame([
+    {
+        "split": split,
+        "originales": manifests[split].height,
+        "aumentos": train_augmented.height if split == "train" else 0,
+        "imágenes": train_for_training.height if split == "train" else manifests[split].height,
+        "razas": manifests[split]["breed"].n_unique(),
+    }
+    for split in SPLITS
+])
 mostrar(resumen_splits)
+known_crossings = crossing_groups(groups, split_by_path)
+display(pl.DataFrame([{
+    "Grupos con etiquetas conflictivas": conflicts.height,
+    "Originales excluidos por conflicto": conflicts["excluded_originals"].sum(),
+    "Grupos confirmados que cruzan particiones": len(known_crossings),
+    "Candidatos del reparto final sin revisión": len(audit_pending),
+}]))
+print(f"Total curado: {final.height} originales de {final['breed'].n_unique()} razas.")
 
 print("\nDescartes por regla")
-mostrar(
-    discarded.group_by("quality_rule").len().rename({"len": "images"}).sort("quality_rule")
-)
-
-print("\nConjunto independiente")
+mostrar(discarded.group_by("quality_rule").len().rename({"len": "images"}).sort("quality_rule"))
 print(
-    f"{independent_images.height} fotos en disco; {audit_issues.height} observaciones del manifiesto "
-    f"(meta ≥ 100, ≥ 20 razas)"
+    f"Conjunto independiente: {independent_images.height} fotos en disco, "
+    f"{audit_issues.height} observaciones del manifiesto."
 )
-
-print(f"\nTotal dataset curado: {final.height} imágenes originales de {final['breed'].n_unique()} razas")
-print(
-    f"Train para entrenar (originales + aumentadas): {train_for_training.height} imágenes "
-    f"({train_split.height} originales + {train_augmented.height} aumentadas)"
-)
-print("Galería de la Etapa 1: train_augmented.csv (originales + aumentadas).")
-

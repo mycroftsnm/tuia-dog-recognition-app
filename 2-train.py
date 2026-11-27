@@ -22,6 +22,12 @@
 # **Requisitos:** haber ejecutado `1-pre-processing.py`. De ahí salen `splits/*.csv` y las copias
 # aumentadas en `data/dataset/augmented/`. Se corre **desde la raíz del repositorio** con el
 # ambiente local (`.venv`); no hay pasos de Colab.
+#
+# **Partición por grupos.** Las celdas leen los manifiestos vigentes. Las salidas
+# guardadas de esta notebook y los checkpoints de clasificación existentes
+# corresponden a la partición anterior. Para medir los clasificadores con el
+# nuevo reparto, entrená nuevos checkpoints en otro directorio. El registro de
+# los archivos históricos está en [splits/README.md](splits/README.md).
 
 # %% [markdown]
 # ## Equipo
@@ -144,8 +150,8 @@ print("dispositivo:", torch.cuda.get_device_name(0) if torch.cuda.is_available()
 #
 # Decisiones:
 #
-# - **Splits 70/15/15 balanceados por clase**, definidos en `1-pre-processing.py` después del
-#   filtrado y del deduplicado.
+# - **Reparto por grupos de fotos**, con objetivo de 70/15/15 de originales por raza.
+#   Lo genera `1-pre-processing.py` después de aplicar el filtro de calidad.
 # - **Galería (Etapa 1) = `train_augmented`**: más vecinos por raza y ninguna consulta indexada
 #   (test y el conjunto independiente nunca se aumentan).
 # - **Entrenamiento (Etapa 2) = el mismo `train_augmented`** (las clases quedan parejas);
@@ -521,7 +527,7 @@ for success, datasets in (
             break
 
 # %% [markdown]
-# ### Lectura de la corrida completa
+# ### Lectura de la corrida histórica
 #
 # En validación, pasar de K=5 a K=10 sube la accuracy de raza de 88.91% a 89.49% con
 # cosine y a 89.56% con l2. La precisión de los vecinos baja de 0.8468 a 0.8273
@@ -535,11 +541,9 @@ for success, datasets in (
 # produjeron las mismas predicciones. El NDCG medio bajó de 0.8357 en test a 0.4915
 # en las 25 fotos independientes.
 #
-# - **Afghan en test, acierto.** Los diez vecinos comparten el hocico alargado y el pelo
-#   largo que enmarca la cabeza. El vecino 1 (`valid/Afghan/05.jpg`, score 0.951) tiene
-#   un encuadre y un fondo de césped casi idénticos a los de la consulta
-#   `train/Afghan/012.jpg`. Son archivos distintos de acuerdo con sus rutas y hashes.
-#   Los vecinos 2 y 3 también muestran una imagen original de la galería y su copia aumentada.
+# - **Afghan, control histórico de fuga.** El vecino 1 (`valid/Afghan/05.jpg`, score 0.951)
+#   corresponde a la misma foto que la consulta `train/Afghan/012.jpg`. La auditoría confirmó
+#   el par y ahora ambas rutas pertenecen al mismo split.
 # - **Poodle independiente, error.** El perro negro está sentado sobre una cama. La sombra
 #   dificulta distinguir el hocico y el pelo rizado se parece al de varios vecinos.
 #   El primer vecino es Schnauzer y los vecinos 6, 7 y 10 suman el voto ganador de
@@ -553,7 +557,7 @@ for success, datasets in (
 # | Decisión | Elección | Por qué |
 # |---|---|---|
 # | Backbone | ResNet18 (11 M parámetros) | mejor costo/precisión en CPU; su embedding de 512-D coincide con `EMBEDDING_DIM` |
-# | Pesos | ImageNet | 10.570 imágenes son pocas para entrenar de cero |
+# | Pesos | ImageNet | El tamaño del conjunto favorece reutilizar pesos preentrenados |
 # | Entrada | 224×224, normalización ImageNet | tamaño nativo del dataset y de los pesos |
 # | Cabeza | Dropout 0.2 + `Linear(512, 70)` | única capa nueva; el dropout la regulariza |
 # | Estrategia | fine-tuning completo, lr 3e-4 | las razas necesitan ajustar texturas, no solo la cabeza |
@@ -1092,7 +1096,8 @@ print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
 # %% [markdown]
 # ## 13. Checkpoints
 #
-# Los checkpoints quedan en `models/` (no se versionan).
+# Los checkpoints existentes quedan en `models/` como historial de la partición anterior.
+# Para la nueva corrida usá otros valores de `MODEL_PATH` y `OUTPUT_PATH`.
 
 # TODO agregar link de descarga con los checkpoints de los modelos entrenados.
 
@@ -1100,11 +1105,12 @@ print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
 sorted(path.name for path in settings.model_path.glob("*.pth"))
 
 # %% [markdown]
-# ## Etapa 3 — Validación del detector YOLO
+# ## Etapa 3 — Validación histórica del detector YOLO
 #
-# Sección 6.3 del enunciado. Se comparan `0.15`, `0.25` y `0.50` con `models/yolov8n.pt` mediante `DetectionService.detect_dogs` para la clase COCO `dog` (16). La elección se hace con validación. Se priorizan menos perros omitidos, luego menos cajas falsas y duplicadas en total y, si persiste el empate, la cercanía a `0.25`. El conjunto independiente se usa después como comprobación.
+# Sección 6.3 del enunciado. Se comparan `0.15`, `0.25` y `0.50` con `models/yolov8n.pt` mediante `DetectionService.detect_dogs` para la clase COCO `dog` (16). La elección original se hizo con la validación anterior. Se priorizan menos perros omitidos, luego menos cajas falsas y duplicadas en total y, si persiste el empate, la cercanía a `0.25`. El conjunto independiente se usa después como comprobación.
 #
-# Se ordena `splits/valid.csv` por `(breed, path)` y se baraja con `random.Random(42)`. Se elige la primera imagen de cada etiqueta `breed` hasta llegar a 24. Si hay menos etiquetas, se completa con rutas distintas en el mismo orden barajado. Cada `path` se resuelve bajo `data/dataset`.
+# Las 24 fotos de la validación anterior se conservan por ruta para reproducir
+# la revisión de las cajas. Cada ruta se resuelve bajo `data/dataset`.
 #
 # Primero se cuentan los perros domésticos visibles en los originales. La muestra contiene 22 fotos con un perro y dos negativos, `Dhole` y `Coyote`, que son cánidos silvestres. Una caja acierta cuando localiza una porción sustancial y reconocible de la cabeza o el cuerpo de un perro. En orden de confianza, cada caja se asigna a un solo perro y cada perro suma un solo acierto. Otra caja que localiza al mismo perro se cuenta como duplicada. Una caja que no localiza a un perro se cuenta como falsa y un perro que queda sin una caja asignada se cuenta como omitido. El criterio se aplica por ubicación, independientemente del clasificador de razas.
 #
@@ -1114,7 +1120,6 @@ sorted(path.name for path in settings.model_path.glob("*.pth"))
 
 # %%
 import csv
-import random
 import sys
 from io import BytesIO
 from pathlib import Path
@@ -1147,25 +1152,6 @@ yolo_detector = DetectionService(
 def yolo_leer_manifiesto(nombre):
     with (YOLO_RAIZ / "splits" / nombre).open(encoding="utf-8-sig", newline="") as archivo:
         return list(csv.DictReader(archivo))
-
-def yolo_seleccionar_validacion():
-    filas = sorted(yolo_leer_manifiesto("valid.csv"), key=lambda fila: (fila["breed"], fila["path"]))
-    random.Random(42).shuffle(filas)
-    rutas, razas = {}, set()
-    for fila in filas:
-        ruta, raza = fila["path"], fila["breed"]
-        if raza not in razas and ruta not in rutas:
-            rutas[ruta] = "Validación"
-            razas.add(raza)
-            if len(rutas) == 24:
-                break
-    for fila in filas:
-        if len(rutas) == 24:
-            break
-        rutas.setdefault(fila["path"], "Validación")
-    if len(rutas) != 24:
-        raise ValueError("Se requieren 24 imágenes distintas en valid.csv.")
-    return rutas
 
 def yolo_leer_imagen(ruta):
     archivo = YOLO_DATASET / ruta
@@ -1306,7 +1292,10 @@ def yolo_mostrar_revision(evaluacion):
         display(pd.DataFrame(filas).style.hide(axis="index"))
 
 # %%
-yolo_validacion = yolo_evaluar(yolo_seleccionar_validacion())
+yolo_muestra_historica = {
+    ruta: "Validación anterior" for ruta in YOLO_REVISION if not ruta.startswith("independent/")
+}
+yolo_validacion = yolo_evaluar(yolo_muestra_historica)
 yolo_mostrar_revision(yolo_validacion)
 
 # %% [markdown]
@@ -1354,11 +1343,11 @@ yolo_elegido = min(
         abs(umbral - 0.25),
     ),
 )
-yolo_mostrar_cajas(yolo_validacion, "train/Poodle/107.jpg", "Validación · Poodle, 107.jpg", 4.8)
-display(Markdown(f"**La validación favorece `{yolo_elegido:.2f}`.**"))
+yolo_mostrar_cajas(yolo_validacion, "train/Poodle/107.jpg", "Validación anterior · Poodle, 107.jpg", 4.8)
+display(Markdown(f"**La validación histórica favorece `{yolo_elegido:.2f}`.**"))
 
 # %% [markdown]
-# **Elección en validación.** `0.15` omitió 7 de los 22 perros, frente a 9 con `0.25` y 14 con `0.50`. Las cajas falsas y duplicadas fueron cero en los tres casos. Bajar de `0.25` a `0.15` recuperó el Poodle de la figura (0.2101) y el Bluetick (0.2040), cuya caja localiza la cabeza y el pecho. Todos los positivos son fotos individuales. Esta muestra aporta evidencia limitada sobre oclusiones y falsos positivos.
+# **Elección en la validación histórica.** `0.15` omitió 7 de los 22 perros, frente a 9 con `0.25` y 14 con `0.50`. Las cajas falsas y duplicadas fueron cero en los tres casos. Bajar de `0.25` a `0.15` recuperó el Poodle de la figura (0.2101) y el Bluetick (0.2040), cuya caja localiza la cabeza y el pecho. Todos los positivos son fotos individuales. Esta muestra aporta evidencia limitada sobre oclusiones y falsos positivos.
 
 # %% [markdown]
 # ### Comprobación independiente
@@ -1403,4 +1392,4 @@ yolo_mostrar_cajas(
 # %% [markdown]
 # El Beagle con arnés, en primer plano, tapa parte del Golden Retriever, que se inclina hacia él. Al fondo a la izquierda se ve una persona desenfocada con pantalón claro y cortada por el borde superior. Las cajas superpuestas del Beagle (0.8688) y del Golden Retriever (0.2813) localizan perros distintos. Con `0.50` queda solo la del Beagle. Al bajar de `0.25` a `0.15` aparece una caja falsa sobre la persona (0.1503) y se mantienen los mismos 26 perros detectados en el conjunto independiente. La foto del gato devuelve cero cajas con los tres umbrales.
 #
-# Se conserva la elección de validación, `0.15`. Una sola escena con solapamiento permite describir este error, y la frecuencia de errores en otras escenas con personas u oclusión queda por medir.
+# Se conserva la elección de la validación histórica, `0.15`. Una sola escena con solapamiento permite describir este error, y la frecuencia de errores en otras escenas con personas u oclusión queda por medir.
