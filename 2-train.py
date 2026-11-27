@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.18.1
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: .venv
 #     language: python
@@ -752,19 +752,14 @@ mostrar(
 # %% [markdown]
 # ### Curvas de entrenamiento y matriz de confusión (Modelo B)
 #
-# Cada fila del historial es una observación de la **misma corrida definitiva**.
 # La pérdida de entrenamiento bajó durante toda la corrida. La de validación repuntó
 # en las épocas 6 y 7 y luego bajó hasta su mínimo al final. La accuracy mejoró en
 # ambas particiones y terminó en 41,55 % en entrenamiento y 37,20 % en validación.
 # El F1 macro de validación pasó de 33,31 % en la época 10 a 34,71 % en la 11 y
 # alcanzó su máximo de **34,83 % en la época 12**.
 #
-# La CNN todavía mejoraba al agotarse el presupuesto de épocas, con una ganancia
-# pequeña al final. Una corrida más larga con el mismo reparto permitiría probar si
-# esa mejora continúa. Con el protocolo evaluado, la ResNet obtuvo mayor F1 macro
-# en test y en el conjunto independiente, por lo que la elegimos para clasificar.
-# La capacidad de los modelos y el preentrenamiento son posibles factores de esa
-# diferencia. Para medir el aporte de cada uno haría falta variar un factor por vez.
+# La ResNet finetuneada obtuvo mayor F1 macro en test y en el conjunto independiente, por lo que la elegimos para clasificar.
+
 # [Comparación final](#12-comparación-y-elección-final).
 #
 # En test, la confusión más frecuente fue predecir Boston Terrier en 10 fotos de
@@ -1085,6 +1080,8 @@ else:
 # **11,99 ms por imagen**. La tabla registra el tamaño de los checkpoints de los dos
 # modelos entrenados.
 
+# El Modelo B es más pequeño porque tiene menos parámetros, pero tarda más en CPU porque
+# sus convoluciones son más costosas que las de la ResNet18, que reduce rápidamente la resolución de los featuremaps, mientras que el Modelo B mantiene la resolución más tiempo.
 # %%
 def model_cost(model: torch.nn.Module, name: str, checkpoint: Path | None = None) -> dict:
     """Parámetros, tamaño, latencia en CPU y dimensión del embedding."""
