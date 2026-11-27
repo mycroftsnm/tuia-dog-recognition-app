@@ -16,13 +16,51 @@ Como grupo, preparamos los datos y la galería, implementamos la extracción de 
 
 ## Datos y partición
 
-En las carpetas de origen de Kaggle encontramos versiones de una misma foto con cambios de escala o encuadre. Por ejemplo, `valid/Afghan/05.jpg` y `train/Afghan/012.jpg` tienen bytes distintos y repiten el perro, el fondo y detalles del borde. Si quedan en particiones distintas, el modelo puede aprender de una versión y ser evaluado con otra, lo que puede sobreestimar el rendimiento en fotos nuevas. [Ejemplo y auditoría visual](1-pre-processing.ipynb#37-partición-de-datos).
+En las carpetas de origen de Kaggle encontramos versiones de una misma foto con cambios de escala o encuadre. Si quedan en particiones distintas, el modelo puede aprender de una versión y ser evaluado con otra, lo que puede sobreestimar el rendimiento en fotos nuevas. [Ejemplo y auditoría visual](1-pre-processing.ipynb#37-partición-de-datos).
 
-Después del filtro de calidad, agrupamos los originales vinculados por coincidencias confirmadas y asignamos cada grupo completo a una sola partición. Excluimos los grupos con etiquetas de raza discordantes. La auditoría final registró cero grupos confirmados repartidos entre particiones y cero candidatos pendientes. Recién después generamos aumentos a partir de los originales de entrenamiento. [Registro de la partición](splits/README.md).
+Después del filtro de calidad, agrupamos los originales vinculados por coincidencias confirmadas y asignamos cada grupo completo a una sola partición. Excluimos los grupos con etiquetas de raza discordantes. Recién después generamos aumentos a partir de los originales de entrenamiento. [Registro de la partición](splits/README.md).
 
 - **Entrenamiento y galería.** Los 6.393 originales de `train` más 4.107 aumentos forman el conjunto de 10.500 imágenes que usamos para entrenar los clasificadores y construir la galería de búsqueda. [Manifiesto de originales](splits/train.csv) · [Manifiesto con aumentos](splits/train_augmented.csv).
 - **Validación y test.** Cada uno contiene 1.371 originales. Usamos validación para elegir los checkpoints y calibrar los umbrales. Test mide el rendimiento en fotos reservadas del mismo dataset. [Validación](splits/valid.csv) · [Test](splits/test.csv).
 - **Conjunto independiente.** Reunimos 107 fotos propias y de fuentes externas. Las 68 consultas de un solo perro permiten medir qué tan bien se recuperan vecinos de la raza correcta y se clasifica la foto completa fuera de Kaggle. La muestra de 32 fotos incluye perros solos, superpuestos, escenas complejas y fotos sin perros. Permite evaluar si YOLO localiza cada perro y si la ResNet acierta la raza de los perros localizados. [Manifiesto de fotos, fuentes y licencias](splits/independent_manifest.csv) · [Consultas de un perro](splits/independent_eval.csv) · [Muestra de detección](2-train.ipynb#detector-y-clasificador-en-el-conjunto-independiente).
+
+## Resultados y elección de modelos
+
+### Búsqueda por similitud
+
+Comparamos los extractores con las mismas fotos de galería y consulta. NDCG@10 da más peso a los vecinos de la raza correcta cuando aparecen en los primeros lugares.
+
+| Extractor | NDCG@10 en test | NDCG@10 independiente |
+| --- | ---: | ---: |
+| ResNet18 de ImageNet (`baseline`) | 0,8374 | **0,5156** |
+| ResNet18 ajustada | **0,8933** | 0,4977 |
+| CNN propia | 0,2828 | 0,0909 |
+
+La ResNet18 ajustada ordenó mejor los vecinos en test. Elegimos el **baseline** para la app porque obtuvo el mejor ranking en las consultas independientes, más cercanas al uso previsto. La ventaja corresponde a esa muestra. En validación elegimos el umbral de similitud que maximizó el F1 de aciertos aceptados. La similitud del primer vecino determina si se acepta el voto. [Comparación de extractores](2-train.ipynb#9-embeddings-de-los-modelos-entrenados) · [Calibración](2-train.ipynb#calibración-en-validación) · [Ejemplos de vecinos](2-train.ipynb#dos-consultas-y-sus-vecinos-con-coseno).
+
+### Clasificación supervisada
+
+Ajustamos todas las capas de ResNet18 para aprovechar las características aprendidas en ImageNet y adaptarlas a las razas del dataset. Entrenamos desde cero una CNN propia de cuatro bloques convolucionales como comparación sobre los mismos datos. Para ambos modelos elegimos el checkpoint con mayor F1 macro en validación. En cada conjunto, el F1 macro da el mismo peso a cada raza presente en las etiquetas de referencia.
+
+| Clasificador | Accuracy en test | F1 macro en test | Accuracy independiente | F1 macro independiente |
+| --- | ---: | ---: | ---: | ---: |
+| ResNet18 ajustada | **90,30 %** | **90,42 %** | **50,00 %** | **57,19 %** |
+| CNN propia | 37,71 % | 35,21 % | 11,76 % | 16,00 % |
+
+Elegimos la **ResNet18 ajustada** para la foto completa y para los recortes porque obtuvo mayor accuracy y F1 macro en ambos conjuntos. [Comparación final](2-train.ipynb#12-comparación-y-elección-final) · [Curvas y matriz de ResNet18](2-train.ipynb#curvas-de-entrenamiento-y-matriz-de-confusión-modelo-a) · [Curvas y matriz de la CNN](2-train.ipynb#curvas-de-entrenamiento-y-matriz-de-confusión-modelo-b).
+
+La caída de accuracy de la ResNet en las fotos independientes fue la principal limitación observada. Las diferencias de encuadre, iluminación, fondo y composición de razas podrían contribuir, y la muestra deja abierta la contribución de cada factor. Por ejemplo, en `Standard_black_Poodle.jpg`, un Poodle negro está sentado sobre una cama con el hocico en sombra. Los dos modelos fallaron al clasificar esa foto completa. [Evaluación independiente](2-train.ipynb#8-evaluación-sobre-el-conjunto-independiente) · [Foto del Poodle](2-train.ipynb#dos-consultas-y-sus-vecinos-con-coseno) · [Ejemplos de errores en test](2-train.ipynb#10-análisis-de-errores).
+
+### Detección y clasificación en escenas
+
+Usamos YOLOv8n preentrenado y mantenemos `YOLO_CONF_THRESHOLD=0.15` porque fue el umbral con menos omisiones. En las 24 fotos de validación, localizó 10 de los 21 perros, frente a 9 con `0.25` y 6 con `0.50`. Los tres umbrales dieron cero cajas falsas o duplicadas en esa muestra. [Comparación de umbrales](2-train.ipynb#etapa-3--comparación-de-umbrales-del-detector-yolo).
+
+En la muestra independiente, con el mismo flujo que usa `/detect`, YOLO localizó **29 de 31 perros** y la ResNet acertó la raza de **21 de esos 29**. Hubo una caja falsa sobre una persona y una duplicada sobre un perro detrás de un sillón. Las tres fotos sin perros devolvieron `detections=[]`. [Revisión de cajas y razas](2-train.ipynb#detector-y-clasificador-en-el-conjunto-independiente) · [Ejemplos del flujo completo](2-train.ipynb#cuatro-ejemplos-del-flujo-completo).
+
+## Problemas encontrados y soluciones
+
+- **Fuga entre particiones.** Las rutas `valid/Afghan/05.jpg` y `train/Afghan/012.jpg` tenían bytes distintos y mostraban el mismo perro, fondo y detalles del borde. Las correspondencias locales SIFT recuperaron el par. Tras el [reparto por grupos](#datos-y-partición), comprobamos que ambas rutas quedaron en `train`. La auditoría final registró cero grupos confirmados repartidos entre particiones y cero candidatos pendientes. [Auditoría del reparto](1-pre-processing.ipynb#auditoría-de-la-nueva-partición) · [Manifiesto final](splits/all.csv) · [Registro de decisiones](splits/README.md).
+- **Índice por extractor.** Los embeddings de distintos modelos pueden tener la misma dimensión y representar características diferentes. Observamos que pgvector ordena toda la tabla por similitud y que el modelo se guarda solo como metadato. Usamos una galería por extractor y la notebook compara cada consulta con la galería generada por ese mismo modelo. En la demo, la consulta SQL del paso de indexación permite verificar el extractor y el total de su galería. [Búsqueda en pgvector](src/lib/storage/pgvector_store.py) · [Evaluación con galerías separadas](2-train.ipynb#9-embeddings-de-los-modelos-entrenados) · [Verificación de la galería](#2-indexá-la-galería).
 
 ## Cómo probar la aplicación
 
@@ -31,7 +69,7 @@ Después del filtro de calidad, agrupamos los originales vinculados por coincide
 - Python 3.12
 - Docker (Docker Desktop incluye Docker Compose)
 - Git
-- Acceso de lectura al ZIP de fotos independientes en Drive
+- Acceso de lectura a los ZIP de fotos independientes y modelos en Drive
 
 Para probar la rama del trabajo desde una carpeta nueva, cloná el fork en esa rama.
 
@@ -62,10 +100,6 @@ Para probar con las fotos del equipo, descargá el ZIP con la cuenta de Drive qu
 
 Extraé el ZIP en la raíz del repositorio, conservando sus carpetas. Los clasificadores quedan en `models/resnet18_finetuned.pth` y `models/cnn_custom.pth`, donde los cargan la notebook de entrenamiento, el backend local y Docker. Los dos historiales quedan en `output/grupos-v1/`. La primera búsqueda con `baseline` descarga los pesos ImageNet si el indexador todavía no los descargó. La primera detección descarga `models/yolov8n.pt`. [Descargar modelos e historiales](https://drive.google.com/file/d/1IEZiJIOgRH36_3XirJiNXqvp3fCusKxU/view?usp=drive_link)
 
-Con docker compose, el entorno reinicia la aplicación y actualiza el código automáticamente al detectar cambios. Lo mismo ocurre en local si usan `--reload`.
-
-El reinicio automático puede no funcionar en algunas versiones de Docker Desktop para *Windows*. En ese caso, vuelvan a correr los comandos del siguiente apartado para actualizar el código dentro de Docker.
-
 ### Opción 1 - Corriendo dentro de Docker
 
 Es la forma en que la cátedra evalúa el trabajo.
@@ -85,7 +119,7 @@ Si el puerto 8080 está ocupado, podés ejecutar `$env:FRONTEND_PORT = "8081"` e
 
 #### 2. Indexá la galería
 
-Con el dataset en `data/dataset`, corré `1-pre-processing.ipynb` de principio a fin con el kernel del entorno de Python 3.12. También podés ejecutar el script desde la raíz del repositorio, con `MPLBACKEND=Agg` para que los gráficos no interrumpan la ejecución.
+Con el dataset en `data/dataset`, corré la notebook de preprocesamiento de principio a fin con el kernel del entorno de Python 3.12. También podés ejecutar el script desde la raíz del repositorio, con `MPLBACKEND=Agg` para que los gráficos no interrumpan la ejecución. [Notebook de preprocesamiento](1-pre-processing.ipynb).
 
 ```powershell
 $env:MPLBACKEND = "Agg"
@@ -112,9 +146,9 @@ Para comparar con `resnet18_finetuned`, creá una base aparte con `docker compos
 
 Cargá una foto de `data/dataset/independent/` y enviá la consulta con el botón de la etapa. Abrí **Estado y resultados**, donde ya figura el `job_id`, y presioná **Consultar**. En ventanas angostas, las pestañas que quedan fuera de la barra están en el menú **…**. Si aparece `en progreso`, volvé a presionar **Consultar**. Si la tarea falla, la pestaña muestra el motivo que devuelve `/status/{job_id}` en `reason`.
 
-- **Búsqueda por similitud.** Seleccioná el extractor con el que indexaste la galería y dejá `Top K` en 10. El resultado muestra la consulta, los diez vecinos y la raza predicha.
+- **Búsqueda por similitud.** Seleccioná el extractor con el que indexaste la galería y dejá `Top K` en 10.
 - **Clasificación supervisada.** Probá `resnet18_finetuned` y `cnn_custom` sobre la misma foto. Compará la raza y el score después de consultar cada job.
-- **Detección y clasificación.** Probá una foto con un perro, otra con perros superpuestos, una escena compleja y una foto sin perros. Las carpetas `escenas/` y `sin_perro/` del conjunto independiente incluyen esos casos. En el resultado aparecen las cajas sobre la foto y el detalle de detecciones en el JSON.
+- **Detección y clasificación.** Probá `Poodle/Standard_black_Poodle.jpg`, `escenas/escena_001.jpg`, `escenas/contexto_009.jpg` y `sin_perro/gato_001.jpg` del conjunto independiente. El JSON incluye el detalle de detecciones que acompaña a la foto con cajas.
 
 ### Opción 2 - Configurando el ambiente local
 
@@ -245,7 +279,7 @@ El tiempo de cada época aparece en la terminal y en `history_<modelo>.json`. Pa
 completa, usá otro nombre de corrida y ajustá `TRAIN_EPOCHS` (12 por defecto). Si querés correr
 la notebook con estas rutas y parámetros, iniciá Jupyter desde la misma terminal.
 
-## Scripts provistos
+## Scripts de apoyo
 
 Se ejecutan desde la raíz del repositorio con el ambiente local activo (y PostgreSQL corriendo si `USE_PGVECTOR=true`). Leen la configuración de `src/.env` si existe:
 
@@ -278,7 +312,9 @@ TOP_K=10
 SIMILARITY_THRESHOLD=0.674
 ```
 
-La galería se guarda en PostgreSQL con pgvector por defecto. Con `USE_PGVECTOR=false`, se guarda en el archivo JSON indicado por `EMBEDDINGS_PATH`.
+La galería se guarda en PostgreSQL con pgvector por defecto. Con `USE_PGVECTOR=false`, se guarda en el archivo JSON indicado por `EMBEDDINGS_PATH`. Las rutas de las fotos se guardan relativas a `DATA_PATH`, lo que permite usar la misma galería en local y en Docker cuando ambos comparten los datos y PostgreSQL.
+
+`EMBEDDING_DIM` debe coincidir con la dimensión del extractor. En pgvector, un cambio de dimensión recrea la tabla `embeddings` y borra los registros anteriores.
 
 ## Endpoints
 
@@ -298,66 +334,15 @@ La galería se guarda en PostgreSQL con pgvector por defecto. Con `USE_PGVECTOR=
 
 Las tres operaciones de la aplicación devuelven `HTTP 202` con un `job_id`. La consulta de estado devuelve `inProgress`, `done` con el enlace al resultado o `failed` con el motivo del error.
 
-## Notebooks
-
-| Notebook | Contenido |
-|----------|-----------|
-| `1-pre-processing.ipynb` | Dataset, EDA, control de calidad, conjunto independiente, preprocesamiento, data augmentation y splits |
-| `2-train.ipynb` | Evaluación de la búsqueda (NDCG@10), entrenamiento del Modelo A y del Modelo B, métricas, análisis de errores, comparación y exportación de checkpoints |
-
-Se pueden entregar commiteadas en el repositorio o en Google Colab, con el link a la notebook de Colab en una celda Markdown al inicio de la notebook del repositorio. En ambos casos deben estar **ejecutadas y con las salidas visibles**: una notebook sin salidas se considera **no entregada** (ver [ENUNCIADO.md](ENUNCIADO.md#82-notebooks-repositorio-o-google-colab)).
-
-## Modelos y entrenamiento
-
-Completar en la entrega final:
-
-- Modelo de embeddings baseline (Etapa 1) y justificación
-- Modelo A (fine-tuning) y Modelo B (CNN propia): arquitectura, estrategia y justificación
-- Hiperparámetros y proceso de entrenamiento
-- Umbral de similitud elegido y cómo se calibró
-- Descarga e instalación de los checkpoints: [Configurá tus modelos](#configurá-tus-modelos).
-
-### Evaluación de YOLO
-
-La app usa `YOLO_CONF_THRESHOLD=0.15` para YOLOv8n (`models/yolov8n.pt`). En las 24 fotos de validación, localizó 10 de los 21 perros, frente a 9 con `0.25` y 6 con `0.50`. Con el umbral elegido, la muestra independiente registró una caja falsa sobre una persona y una caja duplicada. Las tres fotos sin perros devolvieron una lista vacía. [Comparación de umbrales del detector YOLO](2-train.ipynb#etapa-3--comparación-de-umbrales-del-detector-yolo).
-
-## Resultados
-
-- **Búsqueda por similitud.** Con la misma galería de fotos para los tres extractores, la ResNet ajustada lideró en test (NDCG@10 de `0.8933`) y el baseline lideró en el independiente (`0.5156` frente a `0.4977` de la ResNet ajustada). Priorizamos esas fotos por su cercanía al uso previsto. [Comparación de extractores en la notebook](2-train.ipynb#9-embeddings-de-los-modelos-entrenados).
-- **Clasificación supervisada.** La ResNet obtuvo mayor F1 macro que la CNN tanto en test (`90,42 %` frente a `35,21 %`) como en el conjunto independiente (`57,19 %` frente a `16,00 %`). [Comparación y elección final en la notebook](2-train.ipynb#12-comparación-y-elección-final).
-
-Completar en la entrega final:
-
-- Etapa 1: NDCG@10 por modelo de embeddings, sobre `test` y sobre el conjunto independiente
-- Etapa 2: accuracy, precision, recall, specificity y F1 de ambos modelos, y matriz de confusión
-- Comparación entre enfoques (búsqueda por similitud vs. clasificación supervisada; fine-tuning vs. CNN propia)
-- Análisis de errores (falsos positivos y falsos negativos)
-
-## Problemas encontrados y soluciones
-
-Completar en la entrega final.
-
-## Notas importantes
-
-- Para usar `pgvector`, levanten `postgres` y definan `USE_PGVECTOR=true` en `.env`.
-- `EMBEDDING_DIM` debe coincidir con la dimensión del embedding del modelo elegido. Si cambian `EMBEDDING_DIM`, la tabla `embeddings` se recrea y se borran los registros previos.
-- La base vectorial guarda los embeddings de un modelo a la vez: al cambiar de modelo de embeddings hay que reindexar (`scripts/build_index.py`).
-- Las rutas de la galería se guardan relativas a `DATA_PATH` (por ejemplo, `dataset/train/<raza>/<imagen>.jpg`): una base indexada desde el entorno local también sirve para el backend en Docker, porque comparten PostgreSQL y la carpeta `data/`.
-- Los modelos (`*.pth`, `*.pt`, `*.onnx`) y los datos no se versionan (ver `.gitignore`). Para cargar los checkpoints evaluados, usá las rutas de la sección [Configurá tus modelos](#configurá-tus-modelos).
-- Los pesos preentrenados (torchvision/timm y YOLO) se descargan en el primer uso, por lo que se necesita conexión a internet.
-
 ## Entrega
 
-- Pull Request desde su feature branch hacia `main` **de su propio repositorio**, **sin mergear**, con el link subido al campus. No abran el PR contra el repositorio de la cátedra.
-- Si el repositorio es privado, los docentes deben tener acceso.
-- Notebooks `1-pre-processing.ipynb` y `2-train.ipynb` ejecutadas, con sus salidas.
-- Para aprobar, el sistema debe andar sin errores con:
+El PR va de `feature/tp2-razas-perros` a `main` del fork y queda abierto para revisión. Las dos notebooks tienen sus salidas guardadas en el repositorio. Las capturas de las tres pestañas de la prueba integral se adjuntan al PR. [Notebooks de la entrega](ENUNCIADO.md#82-notebooks-repositorio-o-google-colab) · [Prueba integral](ENUNCIADO.md#72-validación-end-to-end).
+
+Comandos de arranque para la revisión del PR.
 
 ```bash
 docker compose build
 docker compose up
 ```
-
-**Fecha de entrega:** a definir por la cátedra. Solo se consideran los commits hasta esa fecha y hora; se recomienda trabajar de forma incremental.
 
 El detalle del contenido del PR, la plantilla de descripción y el checklist están en [ENUNCIADO.md](ENUNCIADO.md#8-entrega-pull-request).
