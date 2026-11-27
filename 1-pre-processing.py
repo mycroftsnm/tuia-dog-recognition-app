@@ -945,6 +945,8 @@ show_rejected_examples(quality, DATASET_DIR)
 # %% [markdown]
 # ## 3.4 Conjunto independiente de evaluación
 #
+# Para evaluar con las fotos del equipo, descargá el ZIP con la cuenta autorizada y extraelo en la raíz del repositorio. Incluye las 107 fotos en `data/dataset/independent/` y sus fuentes y licencias en `splits/independent_manifest.csv`. [Descargar fotos independientes y manifiesto](https://drive.google.com/file/d/1Mj_wpv2h8_Zr9gABHDXu_1_ZmsvkQcdW/view?usp=drive_link)
+#
 # Es el conjunto que mide el comportamiento "en el mundo real" y se usa en las tres etapas.
 # Reglas:
 # - Imágenes **que no pertenecen al dataset** (internet o fotos propias).

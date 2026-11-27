@@ -27,6 +27,7 @@
 # el kernel de la `.venv`. Se requieren los manifiestos de `splits/` y las imágenes
 # aumentadas de `data/dataset/augmented/`, generados por `1-pre-processing.py`.
 # El procedimiento de auditoría y reparto está en [splits/README.md](splits/README.md).
+# Para repetir la evaluación con los pesos descargados, configurá `%env MODEL_PATH=models` en la primera celda de código y conservá `%env OUTPUT_PATH=output/grupos-v1` para cargar los historiales. [Descargar modelos e historiales](#13-checkpoints)
 
 # %% [markdown]
 # ## Equipo
@@ -1152,13 +1153,7 @@ print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
 # %% [markdown]
 # ## 13. Checkpoints
 #
-# Para probar la app, descargá `resnet18_finetuned.pth` y `cnn_custom.pth`
-# y colocalos directamente en `models/`. Consultá el estado del enlace de
-# descarga en el README. [Configurá tus modelos](README.md#configurá-tus-modelos)
-#
-# Las salidas de la notebook registran los directorios usados para el
-# entrenamiento. Los historiales y las evaluaciones de esa corrida están en
-# `output/grupos-v1/`.
+# Extraé el ZIP en la raíz del repositorio. Los clasificadores quedan en `models/resnet18_finetuned.pth` y `models/cnn_custom.pth`, donde los cargan tanto el backend local como Docker. Los dos historiales de entrenamiento quedan en `output/grupos-v1/`. [Descargar modelos e historiales](https://drive.google.com/file/d/1IEZiJIOgRH36_3XirJiNXqvp3fCusKxU/view?usp=drive_link)
 
 # %%
 sorted(path.name for path in settings.model_path.glob("*.pth"))

@@ -96,11 +96,11 @@ python scripts/download_dataset.py
 
 Requiere [credenciales de Kaggle](https://www.kaggle.com/docs/api) configuradas. Si no las tienen, descarguen el dataset manualmente desde Kaggle y descompriman `train/`, `valid/` y `test/` dentro de `data/dataset`.
 
+Para evaluar con las fotos del equipo, descargá el ZIP con la cuenta autorizada y extraelo en la raíz del repositorio. Incluye las 107 fotos en `data/dataset/independent/` y sus fuentes y licencias en `splits/independent_manifest.csv`. [Descargar fotos independientes y manifiesto](https://drive.google.com/file/d/1Mj_wpv2h8_Zr9gABHDXu_1_ZmsvkQcdW/view?usp=drive_link)
+
 ## Configurá tus modelos
 
-Descargá los dos checkpoints evaluados, `resnet18_finetuned.pth` y `cnn_custom.pth`, y colocalos directamente en `models/` en la raíz del repositorio. Tanto el backend local como Docker los cargan desde esa carpeta.
-
-**Enlace público de descarga de los checkpoints pendiente.**
+Extraé el ZIP en la raíz del repositorio. Los clasificadores quedan en `models/resnet18_finetuned.pth` y `models/cnn_custom.pth`, donde los cargan tanto el backend local como Docker. Los dos historiales de entrenamiento quedan en `output/grupos-v1/`. [Descargar modelos e historiales](https://drive.google.com/file/d/1IEZiJIOgRH36_3XirJiNXqvp3fCusKxU/view?usp=drive_link)
 
 Después de subir una foto, elegí qué querés probar:
 
@@ -389,7 +389,7 @@ Completar en la entrega final:
 - Modelo A (fine-tuning) y Modelo B (CNN propia): arquitectura, estrategia y justificación
 - Hiperparámetros y proceso de entrenamiento
 - Umbral de similitud elegido y cómo se calibró
-- Links públicos de descarga de los checkpoints
+- Descarga e instalación de los checkpoints: [Configurá tus modelos](#configurá-tus-modelos).
 
 ### Evaluación de YOLO
 
