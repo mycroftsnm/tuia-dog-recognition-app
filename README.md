@@ -23,7 +23,8 @@ La API responde `HTTP 202` con un `job_id` y luego permite consultar el resultad
 ```json
 {
   "status": "done | inProgress | failed",
-  "link": "url | none"
+  "link": "url | none",
+  "reason": "mensaje del error o null"
 }
 ```
 
@@ -84,7 +85,20 @@ tuia-dog-recognition-app/
 - Python 3.12
 - Docker (Docker Desktop incluye Docker Compose)
 - Git
-- Cuenta de Kaggle (para descargar el dataset)
+- Acceso de lectura al ZIP de fotos independientes en Drive
+
+Para probar la rama del trabajo desde una carpeta nueva, cloná el fork en esa rama.
+
+```bash
+git clone --branch feature/tp2-razas-perros https://github.com/mycroftsnm/tuia-dog-recognition-app.git
+cd tuia-dog-recognition-app
+```
+
+Creá y activá un entorno de Python 3.12 como se indica en los pasos 2 a 4 de la opción local. Instalá las dependencias del proyecto y las que usan las notebooks en ese entorno.
+
+```bash
+uv pip install -r requirements.txt altair==6.3.0 polars==2.2.0 ipykernel==7.4.0
+```
 
 ## Dataset
 
@@ -94,13 +108,13 @@ Dataset principal: [70 Dog Breeds Image Dataset (Kaggle)](https://www.kaggle.com
 python scripts/download_dataset.py
 ```
 
-Requiere [credenciales de Kaggle](https://www.kaggle.com/docs/api) configuradas. Si no las tienen, descarguen el dataset manualmente desde Kaggle y descompriman `train/`, `valid/` y `test/` dentro de `data/dataset`.
+El script usa `kagglehub` para descargar el dataset público. Si Kaggle pide iniciar sesión, configurá tus [credenciales de Kaggle](https://www.kaggle.com/docs/api) o descargá el dataset desde la web y descomprimí `train/`, `valid/` y `test/` dentro de `data/dataset`.
 
-Para evaluar con las fotos del equipo, descargá el ZIP con la cuenta autorizada y extraelo en la raíz del repositorio. Incluye las 107 fotos en `data/dataset/independent/` y sus fuentes y licencias en `splits/independent_manifest.csv`. [Descargar fotos independientes y manifiesto](https://drive.google.com/file/d/1Mj_wpv2h8_Zr9gABHDXu_1_ZmsvkQcdW/view?usp=drive_link)
+Para evaluar con las fotos del equipo, descargá el ZIP con la cuenta de Drive que tiene acceso de lectura y extraelo en la raíz del repositorio, conservando las carpetas del ZIP. Incluye las 107 fotos en `data/dataset/independent/` y sus fuentes y licencias en `splits/independent_manifest.csv`. [Descargar fotos independientes y manifiesto](https://drive.google.com/file/d/1Mj_wpv2h8_Zr9gABHDXu_1_ZmsvkQcdW/view?usp=drive_link)
 
 ## Configurá tus modelos
 
-Extraé el ZIP en la raíz del repositorio. Los clasificadores quedan en `models/resnet18_finetuned.pth` y `models/cnn_custom.pth`, donde los cargan tanto el backend local como Docker. Los dos historiales de entrenamiento quedan en `output/grupos-v1/`. [Descargar modelos e historiales](https://drive.google.com/file/d/1IEZiJIOgRH36_3XirJiNXqvp3fCusKxU/view?usp=drive_link)
+Extraé el ZIP en la raíz del repositorio, conservando sus carpetas. Los clasificadores quedan en `models/resnet18_finetuned.pth` y `models/cnn_custom.pth`, donde los cargan la notebook de entrenamiento, el backend local y Docker. Los dos historiales quedan en `output/grupos-v1/`. La primera búsqueda con `baseline` descarga los pesos ImageNet si el indexador todavía no los descargó. La primera detección descarga `models/yolov8n.pt`. [Descargar modelos e historiales](https://drive.google.com/file/d/1IEZiJIOgRH36_3XirJiNXqvp3fCusKxU/view?usp=drive_link)
 
 Después de subir una foto, elegí qué querés probar:
 
@@ -118,37 +132,55 @@ Es la forma en que la cátedra evalúa el trabajo.
 
 ### 1. Construí y corré la aplicación
 
-Docker Compose usa `.env.docker.example` como configuración del backend. Desde la raíz del repositorio, corré estos comandos.
+Iniciá Docker Desktop o el motor de Docker antes de construir. Docker Compose usa `.env.docker.example` como configuración del backend. Desde la raíz del repositorio, corré estos comandos. La primera construcción descarga PyTorch y puede llevar varios minutos.
 
 ```bash
 docker compose build
 docker compose up -d
 ```
 
-Servicios disponibles: frontend en `http://localhost:8080`, backend en `http://localhost:8000` y PostgreSQL en `localhost:5432`.
+Abrí Gradio en `http://localhost:8080`. Verificá en `http://localhost:8000/health` que `status` sea `ok` y que ambos valores de `checkpoints` sean `true`. PostgreSQL queda disponible en `localhost:5432`.
+
+Si el puerto 8080 está ocupado, podés ejecutar `$env:FRONTEND_PORT = "8081"` en PowerShell o `export FRONTEND_PORT=8081` en Bash antes de `docker compose up -d`. En ese caso abrí Gradio en `http://localhost:8081`.
 
 ### 2. Indexá la galería
 
-Con el dataset en `data/dataset`, ejecutá la notebook de preprocesamiento para generar
-`splits/train_augmented.csv` y las copias aumentadas. Docker Compose monta `splits/` en
-el backend y el indexador usa ese manifiesto para armar la misma galería que la notebook 2.
-El registro de la partición documenta la auditoría y los descartes por etiquetas discordantes. [Registro de la partición](splits/README.md).
+Con el dataset en `data/dataset`, corré `1-pre-processing.ipynb` de principio a fin con el kernel del entorno de Python 3.12. También podés ejecutar el script desde la raíz del repositorio, con `MPLBACKEND=Agg` para que los gráficos no interrumpan la ejecución.
 
-Indexá la galería con `EMBEDDING_MODEL=baseline` y `EMBEDDING_DIM=512`, tal como vienen en la configuración. La búsqueda usa ese mismo extractor para comparar la foto con la galería. Si ya hay un índice armado con otro extractor, usá uno vacío. Desde el contenedor del backend, ejecutá este comando.
+```powershell
+$env:MPLBACKEND = "Agg"
+python 1-pre-processing.py
+```
+
+En Bash, usá `MPLBACKEND=Agg python 1-pre-processing.py`. El preprocesamiento genera `splits/train_augmented.csv` y 4.107 copias en `data/dataset/augmented/train/`. Docker Compose monta el manifiesto y las fotos en el backend. [Registro de la partición](splits/README.md).
+
+Indexá la galería con `EMBEDDING_MODEL=baseline` y `EMBEDDING_DIM=512`, tal como vienen en la configuración. Usá un índice vacío, ya que el comando agrega registros cada vez que se ejecuta. En CPU, la indexación completa puede llevar varios minutos. Desde la raíz del repositorio, ejecutá este comando.
 
 ```bash
 docker compose exec backend python /scripts/build_index.py --split train
 ```
 
+El comando debe terminar con `Total: 10500 embeddings almacenados (modelo: baseline)`. Podés confirmar la cantidad y el extractor guardado en la base de datos.
+
+```bash
+docker compose exec postgres psql -U dogs_user -d dogs -c "SELECT metadata->>'model' AS modelo, count(*) FROM embeddings GROUP BY 1;"
+```
+
+Para comparar con `resnet18_finetuned`, creá una base aparte con `docker compose exec postgres createdb -U dogs_user dogs_resnet_eval`. En `.env.docker.example`, configurá `POSTGRES_DB=dogs_resnet_eval`, `EMBEDDING_MODEL=resnet18_finetuned` y `EMBEDDING_DIM=512`. Ejecutá `docker compose restart backend` y repetí la indexación en esa base. Al terminar, restaurá `POSTGRES_DB=dogs` y `EMBEDDING_MODEL=baseline` y reiniciá el backend otra vez para volver a la galería original.
+
+### 3. Probá las pestañas de Gradio
+
+Cargá una foto de `data/dataset/independent/` y enviá la consulta con el botón de la etapa. Abrí **Estado y resultados**, donde ya figura el `job_id`, y presioná **Consultar**. En ventanas angostas, las pestañas que quedan fuera de la barra están en el menú **…**. Si aparece `en progreso`, volvé a presionar **Consultar**. Si la tarea falla, la pestaña muestra el motivo que devuelve `/status/{job_id}` en `reason`.
+
+- **Búsqueda por similitud.** Seleccioná el extractor con el que indexaste la galería y dejá `Top K` en 10. El resultado muestra la consulta, los diez vecinos y la raza predicha.
+- **Clasificación supervisada.** Probá `resnet18_finetuned` y `cnn_custom` sobre la misma foto. Compará la raza y el score después de consultar cada job.
+- **Detección y clasificación.** Probá una foto con un perro, otra con perros superpuestos, una escena compleja y una foto sin perros. Las carpetas `escenas/` y `sin_perro/` del conjunto independiente incluyen esos casos. En el resultado aparecen las cajas sobre la foto y el detalle de detecciones en el JSON.
+
 ## Opción 2 - Configurando el ambiente local
 
 ### 1. Cloná tu fork
 
-```bash
-git clone <url-de-tu-fork>
-cd tuia-dog-recognition-app
-git checkout -b feature/tp2-razas-perros
-```
+Usá el comando de clonación de [Requisitos](#requisitos).
 
 ### 2. Instalá uv
 
@@ -187,7 +219,7 @@ source .venv/bin/activate
 ### 5. Instalá las dependencias
 
 ```bash
-uv pip install -r requirements.txt
+uv pip install -r requirements.txt altair==6.3.0 polars==2.2.0 ipykernel==7.4.0
 ```
 
 ### 6. Configurá las variables de entorno
