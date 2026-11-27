@@ -16,18 +16,17 @@
 # %% [markdown]
 # # TP2 — Etapa 2: entrenamiento, evaluación y comparación de modelos
 #
-# Esta notebook evalúa la búsqueda por similitud (Etapa 1) y entrena/compara los dos modelos
-# obligatorios (Modelo A: ResNet con fine-tuning; Modelo B: CNN propia).
+# En esta notebook evaluamos la búsqueda de imágenes por similitud y comparamos dos
+# clasificadores de 70 razas. El Modelo A es una ResNet18 preentrenada en ImageNet
+# y ajustada al dataset. El Modelo B es una CNN diseñada por el equipo y entrenada
+# desde cero.
+# Para la búsqueda comparamos los embeddings de ambos modelos con los de una
+# ResNet18 preentrenada que usamos como baseline.
 #
-# **Requisitos:** haber ejecutado `1-pre-processing.py`. De ahí salen `splits/*.csv` y las copias
-# aumentadas en `data/dataset/augmented/`. Se corre **desde la raíz del repositorio** con el
-# ambiente local (`.venv`); no hay pasos de Colab.
-#
-# **Partición por grupos.** Las celdas leen los manifiestos vigentes. Las salidas
-# guardadas de esta notebook y los checkpoints de clasificación existentes
-# corresponden a la partición anterior. Para medir los clasificadores con el
-# nuevo reparto, entrená nuevos checkpoints en otro directorio. El registro de
-# los archivos históricos está en [splits/README.md](splits/README.md).
+# Para reproducir el trabajo, ejecutá la notebook desde la raíz del repositorio con
+# el kernel de la `.venv`. Se requieren los manifiestos de `splits/` y las imágenes
+# aumentadas de `data/dataset/augmented/`, generados por `1-pre-processing.py`.
+# El procedimiento de auditoría y reparto está en [splits/README.md](splits/README.md).
 
 # %% [markdown]
 # ## Equipo
@@ -37,8 +36,9 @@
 # %% [markdown]
 # ## 1. Configuración del entorno
 #
-# Paths y configuración salen de `lib.config` (`.env`). La galería de la Etapa 1 es
-# `splits/train_augmented.csv` (originales + copias que balancean las clases).
+# En la notebook, la celda `%env` fija los directorios de modelos y salidas.
+# `lib.config` lee la configuración y la salida indica las rutas usadas y el
+# dispositivo de ejecución.
 
 # %%
 import json
@@ -148,14 +148,18 @@ print("dispositivo:", torch.cuda.get_device_name(0) if torch.cuda.is_available()
 # %% [markdown]
 # ## 2. Dataset y splits
 #
-# Decisiones:
+# Después del filtro de calidad, agrupamos las fotos duplicadas y casi duplicadas
+# confirmadas por la auditoría. Cada grupo completo quedó en una sola partición
+# para evitar que versiones de la misma foto llegaran a entrenamiento y evaluación.
+# El reparto de originales apuntó a una proporción de 70/15/15 por raza para
+# entrenamiento, validación y test.
 #
-# - **Reparto por grupos de fotos**, con objetivo de 70/15/15 de originales por raza.
-#   Lo genera `1-pre-processing.py` después de aplicar el filtro de calidad.
-# - **Galería (Etapa 1) = `train_augmented`**: más vecinos por raza y ninguna consulta indexada
-#   (test y el conjunto independiente nunca se aumentan).
-# - **Entrenamiento (Etapa 2) = el mismo `train_augmented`** (las clases quedan parejas);
-#   `valid` se usa para early stopping y calibración del umbral; `test` se toca una sola vez, al final.
+# Aplicamos los aumentos a entrenamiento. Las 10.500 imágenes de `train_augmented`
+# (150 por raza) sirven tanto para entrenar los clasificadores como para construir
+# la galería de búsqueda. Validación y test tienen 1.371 imágenes originales cada
+# uno. En validación seleccionamos los checkpoints y calibramos los umbrales de
+# búsqueda. Test y el conjunto independiente se usan como consultas de evaluación
+# y quedan fuera de la galería.
 
 # %%
 def load_split(name: str) -> pl.DataFrame:
@@ -199,17 +203,14 @@ mostrar(resumen_splits)
 # %% [markdown]
 # ## 3. Etapa 1 — Evaluación de la búsqueda por similitud (baseline)
 #
-# Sección 4.3. Se usa el ResNet18 preentrenado de `SimilarityService`, con
-# embeddings L2-normalizados. La galería es `splits/train_augmented.csv`, el manifiesto que
-# indexa la app. `valid` calibra el rechazo. La evaluación final usa `test` y las fotos de
-# un solo perro de `splits/independent_manifest.csv` con su raza etiquetada.
-# Se cruzan las rutas locales y los identificadores de origen de cada consulta con las
-# rutas indexadas y las rutas originales de las copias aumentadas. Se verifica también
-# la coincidencia exacta de archivos por SHA-256.
+# Usamos la ResNet18 preentrenada de `SimilarityService`, con embeddings normalizados
+# en L2. La galería se construye con `splits/train_augmented.csv`, el mismo manifiesto
+# que usa la app para indexar. La tabla cruza las consultas de validación, test y el
+# conjunto independiente con la galería. Los tres controles dieron cero coincidencias
+# por ruta, por origen de las copias aumentadas y por SHA-256.
 #
-# Para repetir la corrida completa, se debe abrir la notebook desde la raíz del repo con el kernel de
-# la `.venv` y `LIMIT_PER_CLASS=0`. Luego, ejecutar las celdas de configuración y splits de las
-# secciones 1 y 2, y todas las celdas de esta sección hasta los ejemplos.
+# Para reproducir la evaluación del baseline, ejecutá las secciones 1 a 3 con
+# `LIMIT_PER_CLASS=0`.
 
 # %%
 from hashlib import sha256
@@ -357,18 +358,24 @@ def rank_metrics(rankings: list[list[Neighbor]], breeds: np.ndarray, k: int) -> 
 # %% [markdown]
 # ### Calibración en validación
 #
-# Para cada métrica y K se obtiene el voto ponderado de `predict_breed_from_neighbors`.
-# Se barren umbrales de 0 a 1 en pasos de 0.001 sobre el mejor score de cada consulta,
-# con la regla de la app: se devuelve `unknown` si el mejor score es menor que el umbral.
-# Se maximiza el **F1 de aciertos aceptados**, la media armónica entre la fracción de
-# aciertos entre las aceptadas y la fracción de aciertos sobre todas las consultas. Si hay
-# empate se prioriza el umbral más bajo. Valid contiene razas conocidas, así que el rechazo
-# se calibra como abstención ante errores de voto.
+# El servicio pondera el voto de cada vecino por su similitud. Probamos umbrales
+# de 0 a 1 en pasos de 0,001 sobre el score del primer vecino. Si queda por debajo
+# del umbral, la predicción es `unknown`. Elegimos el umbral que maximiza el F1 de
+# aciertos aceptados, la media armónica entre la proporción de aciertos sobre las
+# consultas aceptadas y la proporción de aciertos sobre todas las consultas.
+# En caso de empate tomamos el umbral más bajo. Como validación contiene razas
+# conocidas, esta calibración mide la abstención ante posibles errores del voto.
 #
-# En ambas escalas, mayor score significa más similitud. Cosine normaliza el producto
-# escalar y L2 usa `1 / (1 + distancia euclídea)`. Para embeddings unitarios los rankings
-# pueden coincidir, y cada escala da pesos distintos al voto. La accuracy cuenta
-# `unknown` como error. NDCG y precision miden los vecinos recuperados en todas las consultas.
+# Coseno usa el producto escalar normalizado y L2 usa `1 / (1 + distancia euclídea)`.
+# En ambas escalas un score más alto indica un vecino más similar. La accuracy
+# cuenta `unknown` como error. NDCG y precision miden el ranking para todas las consultas.
+#
+# En las 1.371 consultas de validación, pasar de K=5 a K=10 subió la accuracy
+# del voto de 88,4026 % a 88,7673 % y el F1 de aciertos aceptados de 0,8843 a
+# 0,8880 con ambas métricas. La precision bajó de 0,8397 a 0,8191 y el NDCG,
+# de 0,8421 a 0,8269. Los dos valores de K dieron los mismos umbrales,
+# **0,674 para coseno** y **0,554 para L2**. Cada combinación de métrica y K rechazó una consulta
+# (0,0729 %) y la accuracy coincidió con la del voto sin rechazo.
 
 # %%
 valid_rankings = retrieve_baseline(embed_baseline(valid_df, "Validación"))
@@ -417,9 +424,15 @@ print(f"Umbrales fijados para K={BASELINE_K}: " + ", ".join(
 # %% [markdown]
 # ### Evaluación final con K=10
 #
-# Se aplican los umbrales fijados en validación. La relevancia es binaria por raza y
-# `ndcg_at_k` usa el número de imágenes de la raza en toda la galería para calcular el ideal.
-# La precision@10 es la fracción de vecinos de la raza real entre los diez recuperados.
+# Aplicamos los umbrales elegidos en validación. En NDCG@10 la relevancia es binaria
+# por raza. El ranking ideal se calcula con la cantidad de imágenes de la raza en
+# toda la galería. Precision@10 es la fracción de vecinos de la raza real entre los
+# diez recuperados.
+#
+# Coseno y L2 dieron el mismo orden de vecinos y las mismas predicciones en las
+# 1.371 consultas de test y las 68 independientes. Ambos aceptaron todas las
+# consultas. Del test al independiente, la accuracy del voto bajó de 89,3508 % a
+# 58,8235 %, NDCG@10 de 0,8374 a 0,5156 y precision@10 de 0,8301 a 0,5059.
 
 # %%
 baseline_results = {}
@@ -477,7 +490,7 @@ for axis in distribution.axes[2:]:
 display_baseline_figure(distribution, "Distribución de NDCG@10 por conjunto y métrica")
 
 # %% [markdown]
-# ### Dos consultas y sus vecinos con cosine
+# ### Dos consultas y sus vecinos con coseno
 #
 # Los vecinos se leen de izquierda a derecha en cada fila. Las etiquetas verdes indican
 # coincidencia con la raza real.
@@ -527,50 +540,27 @@ for success, datasets in (
             break
 
 # %% [markdown]
-# ### Lectura de la corrida histórica
+# ### Qué muestran las consultas
 #
-# En validación, pasar de K=5 a K=10 sube la accuracy de raza de 88.91% a 89.49% con
-# cosine y a 89.56% con l2. La precisión de los vecinos baja de 0.8468 a 0.8273
-# al ampliar el ranking de cinco a diez. Con K=10, el máximo F1 permite aceptar todas
-# las consultas de validación y la regla de desempate elige 0.000 en ambas escalas.
-# Para reproducir este baseline en la app se usa `SIMILARITY_METRIC=cosine`,
-# `TOP_K=10` y `SIMILARITY_THRESHOLD=0.000`. La calibración mide el rechazo de
-# consultas etiquetadas con razas conocidas.
-#
-# En test e independiente, cosine y l2 coincidieron en el orden de todos los Top-10 y
-# produjeron las mismas predicciones. El NDCG medio bajó de 0.8357 en test a 0.4915
-# en las 25 fotos independientes.
-#
-# - **Afghan, control histórico de fuga.** El vecino 1 (`valid/Afghan/05.jpg`, score 0.951)
-#   corresponde a la misma foto que la consulta `train/Afghan/012.jpg`. La auditoría confirmó
-#   el par y ahora ambas rutas pertenecen al mismo split.
-# - **Poodle independiente, error.** El perro negro está sentado sobre una cama. La sombra
-#   dificulta distinguir el hocico y el pelo rizado se parece al de varios vecinos.
-#   El primer vecino es Schnauzer y los vecinos 6, 7 y 10 suman el voto ganador de
-#   Irish Spaniel. El único Poodle aparece en el puesto 9, de perfil y al aire libre.
+# - **Afghan en test.** Los diez vecinos de `train/Afghan/023.jpg` son Afghan.
+#   El voto acierta y el NDCG@10 es 1,000. La carpeta `train/` indica dónde estaba
+#   el archivo en el dataset de origen. El manifiesto asigna esta foto a test.
+# - **Poodle en el independiente.** En `Standard_black_Poodle.jpg`, el perro
+#   negro está sentado sobre una cama con el hocico en sombra. El primer vecino es
+#   Irish Spaniel (0,759), que también gana el voto. El top 10 contiene cero
+#   Poodle y el NDCG@10 es 0,000.
 
 # %% [markdown]
 # ## 6. Modelo A (obligatorio): fine-tuning de ResNet
 #
-# ResNet18 preentrenada en ImageNet, con una cabeza lineal nueva para las 70 razas.
+# Partimos de una ResNet18 preentrenada en ImageNet y ajustamos todas sus capas con
+# `train_augmented`. La cabeza de clasificación combina dropout de `0.2` y
+# `Linear(512, 70)`. Para extraer embeddings usamos los 512 componentes del pooling
+# global, antes de la cabeza. La entrada es de 224×224 con normalización de ImageNet.
 #
-# | Decisión | Elección | Por qué |
-# |---|---|---|
-# | Backbone | ResNet18 (11 M parámetros) | mejor costo/precisión en CPU; su embedding de 512-D coincide con `EMBEDDING_DIM` |
-# | Pesos | ImageNet | El tamaño del conjunto favorece reutilizar pesos preentrenados |
-# | Entrada | 224×224, normalización ImageNet | tamaño nativo del dataset y de los pesos |
-# | Cabeza | Dropout 0.2 + `Linear(512, 70)` | única capa nueva; el dropout la regulariza |
-# | Estrategia | fine-tuning completo, lr 3e-4 | las razas necesitan ajustar texturas, no solo la cabeza |
-# | Optimizador | AdamW + cosine, weight decay 1e-4 | estable, sin tuning fino |
-# | Regularización | label smoothing 0.1 | razas parecidas y ruido de etiquetas |
-# | Selección | mejor F1 macro en valid, `patience=3` | clases balanceadas: F1 macro pesa igual cada raza |
-#
-# Los hiperparámetros se configuran por `.env` (`TRAIN_EPOCHS`, `TRAIN_BATCH_SIZE`, `TRAIN_LR`,
-# `TRAIN_PATIENCE`, `TRAIN_STRATEGY`). `TRAIN_STRATEGY=feature_extraction` congela el backbone y
-# entrena solo la cabeza: sirve como comparación de estrategias.
-#
-# `train_classifier()` entrena con `train_augmented`, elige el mejor checkpoint por F1 en
-# validación (early stopping) y guarda `history_resnet18_finetuned.json` en `OUTPUT_PATH`.
+# Entrenamos con AdamW, `CosineAnnealingLR` y *label smoothing*. En la tabla de
+# entrenamiento se muestran las métricas de cada época. Guardamos como checkpoint
+# el modelo que obtuvo el mayor F1 macro de validación.
 
 # %%
 classifier = build_classifier(settings)
@@ -606,9 +596,16 @@ mostrar(
 # %% [markdown]
 # ### Curvas de entrenamiento y matriz de confusión (Modelo A)
 #
-# **Lectura:** si train sigue mejorando y valid se estanca, es overfitting (más augmentation o
-# regularización); si las dos mesetan juntas, faltan épocas o capacidad. El checkpoint guardado es
-# el de mejor F1 en validación, no el de la última época.
+# La ResNet completó 12 épocas. El F1 macro de validación subió de 77,75 % en la primera
+# a un máximo de **88,62 % en la época 10**, que es la del checkpoint evaluado.
+# Entre las épocas 10 y 12, la pérdida de entrenamiento siguió bajando de 0,826 a 0,815
+# y el F1 macro de validación terminó en 88,36 %. En la última época, la accuracy fue
+# 99,77 % en entrenamiento y 88,26 % en validación. La brecha y el descenso del F1
+# después del máximo son indicios de sobreajuste al final del entrenamiento.
+#
+# En test, la confusión más frecuente fue predecir Shih-Tzu en 16 fotos de Lhasa.
+# Lhasa fue además la raza con menor exactitud del Modelo A, con 9 aciertos entre
+# 27 fotos.
 
 # %%
 def plot_training(history: pl.DataFrame, model: str) -> None:
@@ -715,18 +712,17 @@ plot_confusion(evaluation_a, "Modelo A")
 # %% [markdown]
 # ## 7. Modelo B (obligatorio): CNN propia
 #
-# `train_classifier` con el modelo activo `cnn_custom` guarda el checkpoint en `MODEL_PATH`,
-# con el nombre `cnn_custom.pth` por defecto. Si ya existe, se omite el entrenamiento.
-# La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
+# Entrenamos la CNN desde cero y actualizamos todas sus capas. Recibe imágenes de
+# 224×224 con normalización de ImageNet y clasifica las mismas 70 razas.
 #
-# | Decisión | Elección | Por qué |
-# |---|---|---|
-# | Bloques | 4 × (Conv-BN-ReLU ×2 + MaxPool), canales 32→64→128→256 | capacidad suficiente para 70 clases sin dispararse en parámetros |
-# | BatchNorm | en cada convolución | estabiliza el entrenamiento desde cero con lotes chicos |
-# | Global Average Pooling | en vez de `flatten` | menos parámetros y menos overfitting |
-# | Embedding | `Linear(256→256)` + ReLU | permite usar el modelo en la búsqueda de la Etapa 1 |
-# | Dropout | 0.3 antes del clasificador | es el modelo con más riesgo de overfit |
-# | Entrenamiento | desde cero, fine-tuning completo | es el objetivo del Modelo B |
+# | Componente | Configuración |
+# |---|---|
+# | Bloques convolucionales | 4 bloques con dos capas Conv-BatchNorm-ReLU y un MaxPool por bloque. Los canales pasan de 32 a 64, 128 y 256. |
+# | Pooling global promedio | Resume cada uno de los 256 canales en un valor. |
+# | Embedding | `Linear(256, 512)` seguida de ReLU. |
+# | Cabeza de clasificación | Dropout de `0.2` antes de `Linear(512, 70)`. |
+#
+# La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
 
 # %%
 classifier.set_active_model("cnn_custom")
@@ -747,8 +743,15 @@ mostrar(
 # %% [markdown]
 # ### Curvas de entrenamiento y matriz de confusión (Modelo B)
 #
-# Mismas figuras que el Modelo A: `plot_training` y `plot_confusion` sobre el historial y la
-# evaluación guardados por `train_classifier` / `evaluate_classifier`.
+# La CNN completó 12 épocas. Su F1 macro de validación subió de 4,18 % en la primera
+# a un máximo de **34,83 % en la época 12**. En el mismo período la accuracy de
+# entrenamiento subió de 6,25 % a 41,55 % y la de validación de 7,88 % a 37,20 %.
+# La pérdida de validación repuntó en las épocas 6 y 7 y volvió a bajar hasta el
+# final. Los avances en las dos particiones indican que seguía aprendiendo en la
+# última época.
+#
+# En test, la confusión más frecuente fue predecir Boston Terrier en 10 fotos de
+# Bulldog. La tabla por raza muestra cero aciertos en Borzoi, Corgi y Great Dane.
 
 # %%
 history_b = load_history("cnn_custom")
@@ -761,10 +764,23 @@ plot_confusion(evaluation_b, "Modelo B")
 
 # %% [markdown]
 # ## 8. Evaluación sobre el conjunto independiente
-# 
-# TODO hacer mejor análisis y comentarios
-# Las métricas caen pero es esperable por el cambio de dominio, Kaggle tiene un perro centrado por foto y el conjunto independiente no. Las métricas macro se promedian sobre las **razas presentes** en el
-# conjunto (no sobre las 70), para no castigar clases que no tienen ejemplos.
+#
+# Usamos las 68 fotos etiquetadas `un_perro` en el manifiesto independiente.
+# Cada consulta es una foto completa con la raza del perro como referencia.
+# Las métricas macro dan el mismo peso a cada una de las **20 razas presentes en
+# las etiquetas reales**. La accuracy es la proporción de fotos clasificadas correctamente.
+#
+# - **ResNet18 (Modelo A).** La accuracy bajó de 90,30 % en test a 50,00 % en el
+#   independiente (34/68).
+# - **CNN (Modelo B).** La accuracy bajó de 37,71 % en test a 11,76 % en el
+#   independiente (8/68).
+#
+# Las diferencias de fondo, iluminación y encuadre son una posible explicación.
+# En la foto del Poodle negro de la sección 3, gran parte de la imagen es la cama y
+# el hocico queda en sombra. Los dos clasificadores también se equivocaron en esa
+# foto según sus predicciones guardadas. Las diferencias en las razas representadas
+# pueden contribuir a la caída. Con estas 68 fotos, queda abierta la contribución
+# de cada factor.
 
 # %%
 independent = load_split("independent_manifest")
@@ -796,9 +812,10 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # %% [markdown]
 # ## 9. Embeddings de los modelos entrenados
 #
-# Comparación de baseline y modelos A y B como extractores de embeddings para la Etapa 1.
-# Con la misma galería, las mismas consultas y similitud coseno se miden NDCG@10, precision@10, accuracy y F1 macro del voto.
-# El umbral se calibró en validación con los embeddings del baseline y se comparte entre los tres extractores.
+# Comparamos el baseline y los modelos A y B como extractores con la misma galería,
+# las mismas consultas y similitud coseno. Usamos K=10 y compartimos el umbral de
+# 0,674 calibrado con los embeddings del baseline en validación. La tabla separa
+# las métricas del ranking (NDCG@10 y precision@10) de las del voto (accuracy y F1 macro).
 
 # %%
 from sklearn.manifold import TSNE
@@ -903,11 +920,22 @@ with pl.Config(tbl_cols=-1, float_precision=4):
     display(pl.DataFrame(retrieval_rows))
 
 # %% [markdown]
-
-# En Test los embeddings del Modelo A mejoran al baseline (el fine-tuning ajusta texturas
-# y contextos de las razas), pero en el conjunto independiente el baseline mantiene mejor rendimiento.
-# El Modelo B queda muy atrás en ambos conjuntos.
-# Para "EMBEDDING_MODEL" elegimos priorizar el conjunto independiente (el caso mas real) por lo que nos quedamos con el baseline.
+# ### Elección del extractor
+#
+# En las 1.371 consultas de test, la ResNet ajustada obtuvo un NDCG@10 de **0,8933**,
+# frente a **0,8374** del baseline. En las 68 consultas independientes, el baseline
+# obtuvo **0,5156**, frente a **0,4977** de la ResNet ajustada. La CNN obtuvo el
+# menor NDCG@10 en ambos conjuntos.
+#
+# Elegimos el **baseline** para `EMBEDDING_MODEL` porque priorizamos el ranking
+# en las fotos independientes. La ventaja se observó en esas 68 consultas y queda
+# por comprobar en otra muestra externa.
+#
+# La visualización t-SNE usa 171 imágenes de test de ocho razas seleccionadas por
+# las confusiones del Modelo A. En los embeddings de ese subconjunto, la silueta
+# media fue 0,1559 con el Modelo A, 0,0891 con el baseline y 0,0266 con el Modelo B.
+# El Modelo A logró la mayor separación entre las razas de ese subconjunto según
+# esta métrica.
 
 # %%
 labels = evaluation_a["class_names"]
@@ -963,8 +991,11 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # %% [markdown]
 # ## 10. Análisis de errores
 #
-# Análisis de errores del Modelo A sobre el conjunto de test: los de **mayor confianza** (se equivocó estando
-# seguro) y las razas con peor accuracy.
+# La grilla muestra los errores del Modelo A con mayor confianza en test. El Lhasa
+# tumbado en el césped fue clasificado como Shih-Tzu con un score de 0,97. El
+# Labradoodle y el Cockapoo de la misma grilla se confundieron en ambos sentidos,
+# con scores de 0,96 y 0,93. El pelaje rizado y claro que se ve en las dos fotos
+# es un parecido que podría contribuir a esa confusión.
 
 # %%
 errors_a = (
@@ -994,8 +1025,17 @@ display_baseline_figure(figure, "Errores del Modelo A (mayor confianza)")
 # %% [markdown]
 # ## 11. Costo computacional
 #
-# Parámetros, tamaño del checkpoint, tiempo de inferencia por imagen en CPU y dimensión del
-# embedding. Es lo que decide si un modelo se puede usar en la app sin GPU.
+# El tiempo de CPU por imagen se calculó **en lotes de ocho**. Después de una pasada
+# de calentamiento, se cronometraron tres pasadas sobre el mismo lote sintético y se
+# dividió el tiempo por las 24 imágenes procesadas. La medición cubre la inferencia
+# del modelo. Una consulta completa en la app incluye además el preprocesamiento y,
+# para la búsqueda, la recuperación de vecinos.
+#
+# El Modelo A ocupó **44,9 MB** y tardó **11,89 ms por imagen**. La CNN ocupó
+# **5,4 MB** y tardó **19,30 ms por imagen**. En esta prueba, la CNN requirió menos
+# espacio en disco y más tiempo de CPU por imagen. El extractor baseline tardó
+# **11,99 ms por imagen**. La tabla registra el tamaño de los checkpoints de los dos
+# modelos entrenados.
 
 # %%
 def model_cost(model: torch.nn.Module, name: str, checkpoint: Path | None = None) -> dict:
@@ -1040,8 +1080,10 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # %% [markdown]
 # ## 12. Comparación y elección final
 #
-# Tabla comparativa de las tres formas de resolver la raza: búsqueda por similitud (Etapa 1),
-# Modelo A y Modelo B (Etapa 2), con el costo de cada uno.
+# En las filas de los modelos A y B, la accuracy y el F1 macro provienen del
+# clasificador supervisado de cada modelo. En la fila del baseline, provienen del
+# voto ponderado de los diez vecinos de la sección 9. Las columnas de NDCG@10
+# miden el orden de los vecinos recuperados con los embeddings de cada fila.
 
 # %%
 retrieval_table = {
@@ -1098,40 +1140,47 @@ print(f"Modelo para clasificar: {best_classifier}")
 print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
 
 # %% [markdown]
-#
-# - **Clasificación:** el Modelo A gana en `test` y en el conjunto independiente; el Modelo B
-#   (desde cero, 10 mil imágenes) no alcanza el mismo techo. La elección es el Modelo A.
-
-# - **Búsqueda:** Como vimos en la sección 9, el Modelo A mejora al baseline en test pero no en el conjunto independiente. El Modelo B queda muy atrás en ambos conjuntos. La elección es el baseline como EMBEDDING_MODEL.
-
-# - **Costo:** TODO analizar bien, modelo B es mas chico pero tambien mas lento
-
-# TODO mejorar esta sección
+# - **Clasificación supervisada.** Elegimos la **ResNet18 ajustada (Modelo A)** por
+#   su mayor F1 macro en test (90,42 % frente a 35,21 % de la CNN). También obtuvo mayor
+#   F1 macro en el independiente (57,19 % frente a 16,00 %). La estimación
+#   de rendimiento independiente corresponde a las 20 razas de esa muestra.
+# - **Búsqueda por similitud.** Elegimos el **baseline preentrenado** por su mayor
+#   NDCG@10 en las 68 consultas independientes. En test, la ResNet ajustada ordenó
+#   mejor los vecinos. La preferencia para la app depende de cuánto se parezcan las
+#   consultas reales a las de la muestra independiente.
 
 # %% [markdown]
 # ## 13. Checkpoints
 #
-# Los checkpoints existentes quedan en `models/` como historial de la partición anterior.
-# Para la nueva corrida usá otros valores de `MODEL_PATH` y `OUTPUT_PATH`.
-
-# TODO agregar link de descarga con los checkpoints de los modelos entrenados.
+# Para reproducir la evaluación con los pesos entrenados, colocá
+# `resnet18_finetuned.pth` y `cnn_custom.pth` en `models/grupos-v1`.
+# La configuración usa `output/grupos-v1` para los historiales y las evaluaciones.
+#
+# **Pendiente** — Enlace público de descarga de los checkpoints.
 
 # %%
 sorted(path.name for path in settings.model_path.glob("*.pth"))
 
 # %% [markdown]
-# ## Etapa 3 — Validación histórica del detector YOLO
+# ## Etapa 3 — Comparación de umbrales del detector YOLO
 #
-# Sección 6.3 del enunciado. Se comparan `0.15`, `0.25` y `0.50` con `models/yolov8n.pt` mediante `DetectionService.detect_dogs` para la clase COCO `dog` (16). La elección original se hizo con la validación anterior. Se priorizan menos perros omitidos, luego menos cajas falsas y duplicadas en total y, si persiste el empate, la cercanía a `0.25`. El conjunto independiente se usa después como comprobación.
+# Comparamos los umbrales de confianza 0,15, 0,25 y 0,50 de `models/yolov8n.pt`
+# para la clase COCO `dog` (16). Para elegir el umbral usamos una selección fija
+# de 24 fotos tomadas de validación antes del reparto por grupos. La tabla
+# corresponde a esas 24 fotos. La comprobación con fotos independientes se
+# presenta por separado.
 #
-# Las 24 fotos de la validación anterior se conservan por ruta para reproducir
-# la revisión de las cajas. Cada ruta se resuelve bajo `data/dataset`.
+# La muestra de 24 fotos incluye 22 imágenes con un perro doméstico y dos
+# negativos, Dhole y Coyote. Revisamos las cajas en orden de confianza. Una caja
+# cuenta como acierto si localiza una porción sustancial y reconocible de la cabeza
+# o el cuerpo de un perro. Cada perro aporta como máximo un acierto. Otra caja del
+# mismo perro cuenta como duplicada, una caja sin perro como falsa y un perro sin
+# caja asignada como omisión. Esta prueba mide la localización de los perros.
 #
-# Primero se cuentan los perros domésticos visibles en los originales. La muestra contiene 22 fotos con un perro y dos negativos, `Dhole` y `Coyote`, que son cánidos silvestres. Una caja acierta cuando localiza una porción sustancial y reconocible de la cabeza o el cuerpo de un perro. En orden de confianza, cada caja se asigna a un solo perro y cada perro suma un solo acierto. Otra caja que localiza al mismo perro se cuenta como duplicada. Una caja que no localiza a un perro se cuenta como falsa y un perro que queda sin una caja asignada se cuenta como omitido. El criterio se aplica por ubicación, independientemente del clasificador de razas.
-#
-# Para repetirlo, abrí la notebook desde la raíz del repo con el kernel de la `.venv` y ejecutá en orden solo las celdas de esta sección. Usan las imágenes y los pesos locales.
-#
-# La corrida guardada usó Python 3.12.11, Ultralytics 8.4.218 y PyTorch 2.11.0 en CPU.
+# Para elegir el umbral priorizamos menos omisiones. En caso de empate, miramos el
+# total de cajas falsas y duplicadas y luego la cercanía a 0,25. Para reproducir la
+# revisión usá las mismas rutas bajo `data/dataset`. Las salidas se generaron en CPU
+# con Python 3.12.11, Ultralytics 8.4.218 y PyTorch 2.11.0.
 
 # %%
 import csv
@@ -1314,9 +1363,11 @@ yolo_validacion = yolo_evaluar(yolo_muestra_historica)
 yolo_mostrar_revision(yolo_validacion)
 
 # %% [markdown]
-# ### Resultado de validación
+# ### Resultados en la muestra de 24 fotos
 #
-# Las tablas y figuras se calculan a partir de las detecciones de esta corrida. En la figura, el texto de cada caja indica su asignación visual y la confianza de YOLO.
+# La tabla resume aciertos, omisiones, cajas falsas y duplicadas por umbral. En
+# la figura, cada recuadro lleva la asignación de la revisión visual y el score
+# del detector.
 
 # %%
 def yolo_mostrar_cajas(evaluacion, ruta, titulo, altura):
@@ -1362,12 +1413,19 @@ yolo_mostrar_cajas(yolo_validacion, "train/Poodle/107.jpg", "Validación anterio
 display(Markdown(f"**La validación histórica favorece `{yolo_elegido:.2f}`.**"))
 
 # %% [markdown]
-# **Elección en la validación histórica.** `0.15` omitió 7 de los 22 perros, frente a 9 con `0.25` y 14 con `0.50`. Las cajas falsas y duplicadas fueron cero en los tres casos. Bajar de `0.25` a `0.15` recuperó el Poodle de la figura (0.2101) y el Bluetick (0.2040), cuya caja localiza la cabeza y el pecho. Todos los positivos son fotos individuales. Esta muestra aporta evidencia limitada sobre oclusiones y falsos positivos.
+# Con 0,15 se omitieron 7 de los 22 perros, frente a 9 con 0,25 y 14 con 0,50.
+# La tabla registra cero cajas falsas y duplicadas con los tres umbrales. En
+# la figura de `107.jpg`, el Poodle blanco se detecta con 0,15 (score 0,2102).
+# Con 0,25 y 0,50, la figura muestra cero cajas. Elegimos 0,15 por el menor
+# número de omisiones en esta muestra de fotos individuales.
 
 # %% [markdown]
 # ### Comprobación independiente
 #
-# Se agrupan las filas por `path` para procesar cada foto una sola vez. La evaluación visual usa solo imágenes con anotaciones en `YOLO_REVISION`; las rutas nuevas se informan como pendientes hasta que se revisen las detecciones. Los resultados no representan todavía todo el manifiesto.
+# La tabla incluye las 27 fotos independientes con anotaciones en `YOLO_REVISION`.
+# Cada ruta se cuenta una vez. Se revisaron 25 fotos de un perro, una escena de
+# dos perros y una foto de un gato. Quedan 80 fotos del manifiesto pendientes de
+# revisión visual.
 
 # %%
 yolo_tipos = {
@@ -1405,6 +1463,13 @@ yolo_mostrar_cajas(
 )
 
 # %% [markdown]
-# El Beagle con arnés, en primer plano, tapa parte del Golden Retriever, que se inclina hacia él. Al fondo a la izquierda se ve una persona desenfocada con pantalón claro y cortada por el borde superior. Las cajas superpuestas del Beagle (0.8688) y del Golden Retriever (0.2813) localizan perros distintos. Con `0.50` queda solo la del Beagle. Al bajar de `0.25` a `0.15` aparece una caja falsa sobre la persona (0.1503) y se mantienen los mismos 26 perros detectados en el conjunto independiente. La foto del gato devuelve cero cajas con los tres umbrales.
+# En la escena con dos perros, el Beagle con arnés está delante del Golden
+# Retriever. Con 0,25 aparecen las dos cajas (scores de 0,8686 y 0,2807). Con
+# 0,50 queda la del Beagle. Con 0,15 aparecen las dos cajas y una caja falsa
+# sobre la persona del fondo (score de 0,1504). La foto del gato muestra cero
+# cajas con los tres umbrales.
 #
-# Se conserva la elección de la validación histórica, `0.15`. Una sola escena con solapamiento permite describir este error, y la frecuencia de errores en otras escenas con personas u oclusión queda por medir.
+# En las fotos independientes revisadas se detectaron los mismos 26 perros con
+# 0,15 y 0,25. En esa muestra, 0,25 evitó la caja falsa de la escena. La elección
+# de 0,15 se apoya en las 24 fotos usadas para comparar umbrales. La evidencia
+# sobre perros superpuestos se limita a la escena que se muestra aquí.
