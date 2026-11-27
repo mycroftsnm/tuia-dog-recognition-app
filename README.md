@@ -98,11 +98,15 @@ Requiere [credenciales de Kaggle](https://www.kaggle.com/docs/api) configuradas.
 
 ## Configurá tus modelos
 
-Entrená tus modelos (Etapa 2) con `2-train.ipynb` en Google Colab o [en Windows con una GPU NVIDIA](#entrenamiento-local-con-cuda-en-windows). Guardá los checkpoints dentro de la carpeta `models`. El backend admite modelos con extensión **.pth** (PyTorch, se carga con `torch.load` el modelo completo) o **.onnx** (se carga con `onnxruntime`). Si usan otro framework, expórtenlo a **.onnx**.
+Descargá los dos checkpoints evaluados, `resnet18_finetuned.pth` y `cnn_custom.pth`, y colocalos directamente en `models/` en la raíz del repositorio. Tanto el backend local como Docker los cargan desde esa carpeta.
 
-Recordá actualizar la configuración del `.env` correspondiente (`RESNET18_MODEL_NAME`, `CNN_CUSTOM_MODEL_NAME`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `SIMILARITY_THRESHOLD`) para que apunte a tus modelos.
+**Enlace público de descarga de los checkpoints pendiente.**
 
-> El backend arranca aunque falten los checkpoints: `/health` informa cuáles encuentra en `models/`. Las pestañas de las Etapas 2 y 3 fallan hasta que existan.
+Después de subir una foto, elegí qué querés probar:
+
+- **Búsqueda (`/search`).** Una ResNet18 preentrenada en ImageNet (`baseline`) genera un embedding de 512 dimensiones. Los diez vecinos más similares por coseno votan la raza, ponderados por su similitud. Si el mejor vecino queda por debajo de `0.674`, calibrado en validación, la app devuelve `unknown`. Con la misma galería para los tres extractores, la ResNet ajustada lideró en test (NDCG@10 de `0.8933`) y el baseline lideró en las 68 consultas independientes (`0.5156` frente a `0.4977` de la ResNet ajustada). Se priorizaron esas fotos por su cercanía al uso previsto. [Comparación de extractores en la notebook](2-train.ipynb#9-embeddings-de-los-modelos-entrenados).
+- **Clasificación (`/classify`).** La ResNet18 ajustada predice la raza de la foto completa por defecto. Para comparar, seleccioná `cnn_custom` como modelo en la app o en la API. La ResNet obtuvo mayor F1 macro que la CNN tanto en test (`90,42 %` frente a `35,21 %`) como en el conjunto independiente (`57,19 %` frente a `16,00 %`). [Comparación y elección final en la notebook](2-train.ipynb#12-comparación-y-elección-final).
+- **Detección (`/detect`).** YOLOv8n localiza los perros en la foto y la misma ResNet18 ajustada clasifica la raza de cada recorte. En la muestra de validación del detector, el umbral de confianza `0.15` localizó 15 de 22 perros, frente a 13 con `0.25`. [Comparación de umbrales en la notebook](2-train.ipynb#etapa-3--comparación-de-umbrales-del-detector-yolo).
 
 Con docker compose, el entorno reinicia la aplicación y actualiza el código automáticamente al detectar cambios. Lo mismo ocurre en local si usan `--reload`.
 
@@ -114,7 +118,7 @@ Es la forma en que la cátedra evalúa el trabajo.
 
 ### 1. Construí y corré la aplicación
 
-Ajustá el archivo **.env.docker.example** a tus necesidades. Luego corré desde la terminal:
+Docker Compose usa `.env.docker.example` como configuración del backend. Desde la raíz del repositorio, corré estos comandos.
 
 ```bash
 docker compose build
@@ -128,10 +132,9 @@ Servicios disponibles: frontend en `http://localhost:8080`, backend en `http://l
 Con el dataset en `data/dataset`, ejecutá la notebook de preprocesamiento para generar
 `splits/train_augmented.csv` y las copias aumentadas. Docker Compose monta `splits/` en
 el backend y el indexador usa ese manifiesto para armar la misma galería que la notebook 2.
-El [registro de la partición](splits/README.md) documenta la auditoría, los descartes por
-etiquetas discordantes y los checkpoints de la partición anterior.
+El registro de la partición documenta la auditoría y los descartes por etiquetas discordantes. [Registro de la partición](splits/README.md).
 
-Indexá la galería desde el contenedor del backend:
+Indexá la galería con `EMBEDDING_MODEL=baseline` y `EMBEDDING_DIM=512`, tal como vienen en la configuración. La búsqueda usa ese mismo extractor para comparar la foto con la galería. Si ya hay un índice armado con otro extractor, usá uno vacío. Desde el contenedor del backend, ejecutá este comando.
 
 ```bash
 docker compose exec backend python /scripts/build_index.py --split train
@@ -189,7 +192,7 @@ uv pip install -r requirements.txt
 
 ### 6. Configurá las variables de entorno
 
-Ajustá el archivo `.env.local.example` a tus necesidades y copialo a `src/.env`. El backend local y los scripts de `scripts/` leen la configuración desde ese archivo.
+Copiá `.env.local.example` a `src/.env`. El backend local y los scripts de `scripts/` leen la configuración desde ese archivo.
 
 ```bash
 cp .env.local.example src/.env
@@ -209,21 +212,29 @@ docker compose up postgres -d
 
 Solo es necesaria con `USE_PGVECTOR=true` (por defecto). Con `USE_PGVECTOR=false` se usa la base vectorial JSON (`data/embeddings.json`) y no hace falta Docker para trabajar en local.
 
-### 9. Iniciá el backend
+### 9. Indexá la galería
+
+Generá el mismo manifiesto y las copias aumentadas indicados en el paso de indexación de Docker. Conservá `EMBEDDING_MODEL=baseline` y `EMBEDDING_DIM=512` en `src/.env` y corré este comando desde la raíz del repositorio.
+
+```bash
+python scripts/build_index.py --split train
+```
+
+### 10. Iniciá el backend
 
 ```bash
 cd src
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 10. Iniciá el frontend (en otra terminal, con el ambiente virtual activado)
+### 11. Iniciá el frontend (en otra terminal, con el ambiente virtual activado)
 
 ```bash
 cd src
 uvicorn frontend.app:app --port 8080
 ```
 
-### 11. Verificá que todo esté corriendo
+### 12. Verificá que todo esté corriendo
 
 - Frontend: `http://localhost:8080`
 - Backend: `http://localhost:8000/docs` (Swagger) y `http://localhost:8000/health` (muestra el modelo seleccionado y los checkpoints encontrados)
@@ -274,10 +285,9 @@ python scripts/download_dataset.py
 python scripts/build_index.py --split train
 # ... o lo mismo desde el contenedor del backend (con docker compose up -d corriendo)
 docker compose exec backend python /scripts/build_index.py --split train
-
-# Entrenar y evaluar el clasificador localmente (alternativa a 2-train.ipynb)
-python scripts/train_classifier.py --model resnet18_finetuned
 ```
+
+Para entrenar localmente con `scripts/train_classifier.py`, configurá un `MODEL_PATH` y un `OUTPUT_PATH` propios como en el ejemplo de entrenamiento con CUDA.
 
 El indexador agrega registros a la base configurada. Para reconstruir una galería,
 usá un índice vacío.
@@ -286,11 +296,17 @@ Con `USE_PGVECTOR=false`, la indexación del split completo es lenta: el JSON se
 
 ## Configuración
 
-No hardcodeen parámetros: configúrenlos mediante `.env`.
+Los ejemplos de configuración local y de Docker incluyen los parámetros de búsqueda elegidos en la notebook.
 
-1. Para la ejecución local, copien `.env.local.example` a `src/.env`.
-2. Ajusten el modelo de embeddings (`EMBEDDING_MODEL`, `EMBEDDING_DIM`), la búsqueda (`SIMILARITY_METRIC`, `SIMILARITY_THRESHOLD`, `TOP_K`), los checkpoints (`RESNET18_MODEL_NAME`, `CNN_CUSTOM_MODEL_NAME`), YOLO (`YOLO_MODEL`, `YOLO_CONF_THRESHOLD`, `YOLO_DOG_CLASS_ID`) y los paths.
-3. Opcional (habilitado por defecto): configuren la conexión a PostgreSQL + pgvector (`USE_PGVECTOR`). Con `USE_PGVECTOR=false`, los embeddings se guardan en un archivo JSON (`EMBEDDINGS_PATH`).
+```dotenv
+EMBEDDING_MODEL=baseline
+EMBEDDING_DIM=512
+SIMILARITY_METRIC=cosine
+TOP_K=10
+SIMILARITY_THRESHOLD=0.674
+```
+
+La galería se guarda en PostgreSQL con pgvector por defecto. Con `USE_PGVECTOR=false`, se guarda en el archivo JSON indicado por `EMBEDDINGS_PATH`.
 
 ## Endpoints
 
@@ -344,7 +360,7 @@ Ver el contrato de cada función, recomendaciones y errores frecuentes en [ENUNC
 
 1. `1-pre-processing.ipynb`: EDA, filtrado, conjunto independiente, preprocesamiento, augmentation y splits.
 2. Etapa 1 en `similarity_service.py`. Indexá la galería con `python scripts/build_index.py --split train` y probá la pestaña de la Etapa 1.
-3. Etapa 2 en `classifier_service.py`, entrenando y comparando los modelos con `2-train.ipynb`. Descargá los checkpoints a `models/`.
+3. Etapa 2 en `classifier_service.py`, entrenando y comparando los modelos con `2-train.ipynb`. Para probar los pesos evaluados, seguí las rutas de la sección [Configurá tus modelos](#configurá-tus-modelos).
 4. Etapa 3 en `detection_service.py` y validación end-to-end con `docker compose up`.
 
 ## Notebooks
@@ -377,7 +393,7 @@ Completar en la entrega final:
 
 ### Evaluación de YOLO
 
-Se recomienda `YOLO_CONF_THRESHOLD=0.15` para YOLOv8n (`models/yolov8n.pt`). En validación detectó 15 de 22 perros frente a 13 con `0.25`, con cero cajas falsas y duplicadas en ambos umbrales. [Etapa 3 — Validación del detector YOLO](2-train.ipynb#etapa-3--validación-del-detector-yolo).
+La app usa `YOLO_CONF_THRESHOLD=0.15` para YOLOv8n (`models/yolov8n.pt`). La notebook registra cero cajas falsas y duplicadas con ese umbral en la muestra de validación, y una caja falsa en la escena independiente con dos perros. [Comparación de umbrales del detector YOLO](2-train.ipynb#etapa-3--comparación-de-umbrales-del-detector-yolo).
 
 ## Resultados
 
@@ -398,7 +414,7 @@ Completar en la entrega final.
 - `EMBEDDING_DIM` debe coincidir con la dimensión del embedding del modelo elegido. Si cambian `EMBEDDING_DIM`, la tabla `embeddings` se recrea y se borran los registros previos.
 - La base vectorial guarda los embeddings de un modelo a la vez: al cambiar de modelo de embeddings hay que reindexar (`scripts/build_index.py`).
 - Las rutas de la galería se guardan relativas a `DATA_PATH` (por ejemplo, `dataset/train/<raza>/<imagen>.jpg`): una base indexada desde el entorno local también sirve para el backend en Docker, porque comparten PostgreSQL y la carpeta `data/`.
-- Los modelos (`*.pth`, `*.pt`, `*.onnx`) y los datos no se versionan (ver `.gitignore`). Coloquen los checkpoints en `models/` y súbanlos a un link **público de solo lectura** para que los docentes puedan descargarlos.
+- Los modelos (`*.pth`, `*.pt`, `*.onnx`) y los datos no se versionan (ver `.gitignore`). Para cargar los checkpoints evaluados, usá las rutas de la sección [Configurá tus modelos](#configurá-tus-modelos).
 - Los pesos preentrenados (torchvision/timm y YOLO) se descargan en el primer uso, por lo que se necesita conexión a internet.
 
 ## Entrega
