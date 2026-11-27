@@ -586,7 +586,7 @@ quality = image_meta.with_columns(
     .when(pl.col("laplacian_var") < BLUR_THRESHOLD)
     .then(pl.lit("R2: Borrosa (Laplaciano < {})".format(BLUR_THRESHOLD)))
     .when((pl.col("brightness") < BRIGHTNESS_MIN) | (pl.col("brightness") > BRIGHTNESS_MAX))
-    .then(pl.lit("R3: {} < Brillo < {}".format(BRIGHTNESS_MIN, BRIGHTNESS_MAX)))
+    .then(pl.lit("R3: Brillo < {} o Brillo > {}".format(BRIGHTNESS_MIN, BRIGHTNESS_MAX)))
     .otherwise(pl.lit("Pasa reglas visuales"))
     .alias("quality_rule")
 )
