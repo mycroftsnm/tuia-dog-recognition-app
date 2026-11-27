@@ -106,7 +106,7 @@ Después de subir una foto, elegí qué querés probar:
 
 - **Búsqueda (`/search`).** Una ResNet18 preentrenada en ImageNet (`baseline`) genera un embedding de 512 dimensiones. Los diez vecinos más similares por coseno votan la raza, ponderados por su similitud. Si el mejor vecino queda por debajo de `0.674`, calibrado en validación, la app devuelve `unknown`. Con la misma galería para los tres extractores, la ResNet ajustada lideró en test (NDCG@10 de `0.8933`) y el baseline lideró en las 68 consultas independientes (`0.5156` frente a `0.4977` de la ResNet ajustada). Se priorizaron esas fotos por su cercanía al uso previsto. [Comparación de extractores en la notebook](2-train.ipynb#9-embeddings-de-los-modelos-entrenados).
 - **Clasificación (`/classify`).** La ResNet18 ajustada predice la raza de la foto completa por defecto. Para comparar, seleccioná `cnn_custom` como modelo en la app o en la API. La ResNet obtuvo mayor F1 macro que la CNN tanto en test (`90,42 %` frente a `35,21 %`) como en el conjunto independiente (`57,19 %` frente a `16,00 %`). [Comparación y elección final en la notebook](2-train.ipynb#12-comparación-y-elección-final).
-- **Detección (`/detect`).** YOLOv8n localiza los perros en la foto y la misma ResNet18 ajustada clasifica la raza de cada recorte. En la muestra de validación del detector, el umbral de confianza `0.15` localizó 15 de 22 perros, frente a 13 con `0.25`. [Comparación de umbrales en la notebook](2-train.ipynb#etapa-3--comparación-de-umbrales-del-detector-yolo).
+- **Detección (`/detect`).** YOLOv8n localiza los perros en la foto y la misma ResNet18 ajustada clasifica la raza de cada recorte. En las 24 fotos de validación, `0.15` localizó 10 de 21 perros, frente a 9 con `0.25` y 6 con `0.50`. [Comparación de umbrales en la notebook](2-train.ipynb#etapa-3--comparación-de-umbrales-del-detector-yolo).
 
 Con docker compose, el entorno reinicia la aplicación y actualiza el código automáticamente al detectar cambios. Lo mismo ocurre en local si usan `--reload`.
 
@@ -393,7 +393,7 @@ Completar en la entrega final:
 
 ### Evaluación de YOLO
 
-La app usa `YOLO_CONF_THRESHOLD=0.15` para YOLOv8n (`models/yolov8n.pt`). La notebook registra cero cajas falsas y duplicadas con ese umbral en la muestra de validación, y una caja falsa en la escena independiente con dos perros. [Comparación de umbrales del detector YOLO](2-train.ipynb#etapa-3--comparación-de-umbrales-del-detector-yolo).
+La app usa `YOLO_CONF_THRESHOLD=0.15` para YOLOv8n (`models/yolov8n.pt`). Ese umbral tuvo menos omisiones en las 24 fotos de validación. Con el umbral elegido, la prueba independiente de 32 fotos registró una caja falsa sobre una persona y una caja duplicada. Las tres fotos sin perros devolvieron una lista vacía. [Comparación de umbrales del detector YOLO](2-train.ipynb#etapa-3--comparación-de-umbrales-del-detector-yolo).
 
 ## Resultados
 
