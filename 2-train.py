@@ -731,7 +731,7 @@ plot_confusion(evaluation_a, "Modelo A")
 # Entrenamos usamos AdamW con tasa inicial `3e-4`, `weight_decay=1e-4`,
 # `Batch Size=32`, todos los hiperparámetros configurados por variables de entorno.
 #
-# Se entrena durante 100 épocas y se guarda el mejor modelo según la métrica de validación.
+# Se entrena durante 100 épocas (con early stopping si la métrica de validación deja de mejorar) y se guarda el mejor modelo según la métrica de validación.
 
 # %%
 classifier.set_active_model("cnn_custom")
@@ -946,8 +946,7 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # menor NDCG@10 en ambos conjuntos.
 #
 # Elegimos el **baseline** para `EMBEDDING_MODEL` porque priorizamos el ranking
-# en las fotos independientes. La ventaja se observó en esas 68 consultas y queda
-# por comprobar en otra muestra externa.
+# en las fotos independientes (más cercanas a la realidad)
 #
 # La visualización t-SNE usa 171 imágenes de test de ocho razas seleccionadas por
 # las confusiones del Modelo A. En los embeddings de ese subconjunto, la silueta
@@ -1194,9 +1193,7 @@ print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
 #   F1 macro en el independiente (57,19 % frente a 16,00 %). La estimación
 #   de rendimiento independiente corresponde a las 20 razas de esa muestra.
 # - **Búsqueda por similitud.** Elegimos el **baseline preentrenado** por su mayor
-#   NDCG@10 en las 68 consultas independientes. En test, la ResNet ajustada ordenó
-#   mejor los vecinos. La preferencia para la app depende de cuánto se parezcan las
-#   consultas reales a las de la muestra independiente.
+#   NDCG@10 en las 68 consultas independientes, si bien la ResNet18 ajustada obtuvo mayor NDCG@10 en test, priorizamos el resultado en el conjunto independiente que es más cercano a la realidad.
 
 # %% [markdown]
 # ## 13. Checkpoints
