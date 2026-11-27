@@ -1152,11 +1152,13 @@ print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
 # %% [markdown]
 # ## 13. Checkpoints
 #
-# Para reproducir la evaluación con los pesos entrenados, colocá
-# `resnet18_finetuned.pth` y `cnn_custom.pth` en `models/grupos-v1`.
-# La configuración usa `output/grupos-v1` para los historiales y las evaluaciones.
+# Para probar la app, descargá `resnet18_finetuned.pth` y `cnn_custom.pth`
+# y colocalos directamente en `models/`. Consultá el estado del enlace de
+# descarga en el README. [Configurá tus modelos](README.md#configurá-tus-modelos)
 #
-# **Pendiente** — Enlace público de descarga de los checkpoints.
+# Las salidas de la notebook registran los directorios usados para el
+# entrenamiento. Los historiales y las evaluaciones de esa corrida están en
+# `output/grupos-v1/`.
 
 # %%
 sorted(path.name for path in settings.model_path.glob("*.pth"))
