@@ -27,7 +27,9 @@
 # el kernel de la `.venv`. Se requieren los manifiestos de `splits/` y las imágenes
 # aumentadas de `data/dataset/augmented/`, generados por `1-pre-processing.py`.
 # El procedimiento de auditoría y reparto está en [splits/README.md](splits/README.md).
-# Para repetir la evaluación, extraé el ZIP en la raíz del repositorio. La primera celda fija las rutas `models/` para los checkpoints y `output/grupos-v1/` para los historiales. [Descargar modelos e historiales](#13-checkpoints)
+# Para repetir la evaluación, extraé el ZIP en la raíz del repositorio. Por defecto,
+# la evaluación busca los checkpoints en `models/` y los historiales en
+# `output/grupos-v1/`. [Descargar modelos e historiales](#13-checkpoints)
 
 # %% [markdown]
 # ## Equipo
@@ -37,9 +39,9 @@
 # %% [markdown]
 # ## 1. Configuración del entorno
 #
-# En la notebook, la celda `%env` fija los directorios de modelos y salidas.
-# `lib.config` lee la configuración y la salida indica las rutas usadas y el
-# dispositivo de ejecución.
+# La notebook y el script usan los mismos directorios por defecto. Para una
+# corrida con otras rutas, configurá `MODEL_PATH` y `OUTPUT_PATH` antes de iniciar
+# el kernel o el script. La salida muestra las rutas efectivas y el dispositivo.
 
 # %%
 import json
@@ -48,7 +50,9 @@ import sys
 import time
 from pathlib import Path
 
-# Antes de importar torch/lib: caché de pesos y store JSON (la evaluación no usa Postgres).
+# Configuración de la entrega antes de importar torch/lib.
+os.environ.setdefault("MODEL_PATH", "models")
+os.environ.setdefault("OUTPUT_PATH", "output/grupos-v1")
 os.environ.setdefault("USE_PGVECTOR", "false")
 os.environ.setdefault("TORCH_HOME", str(Path.cwd() / "models" / "torch"))
 
@@ -724,6 +728,25 @@ plot_confusion(evaluation_a, "Modelo A")
 # | Cabeza de clasificación | Dropout de `0.2` antes de `Linear(512, 70)`. |
 #
 # La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
+# En la corrida definitiva usamos AdamW con tasa inicial `3e-4`, `weight_decay=1e-4`,
+# `CosineAnnealingLR`, *label smoothing* de `0.1` y lotes de 32 imágenes.
+
+# %% [markdown]
+# ### Experimentos registrados
+#
+# | Prueba | Pregunta | Configuración | Partición | Observación | Decisión |
+# | --- | --- | --- | --- | --- | --- |
+# | Prueba local de CUDA | ¿La CNN puede completar una época con validación en GPU? | CNN desde cero, CUDA, 1 época, lote de 32 | `train_augmented` y `valid` anteriores al reparto por grupos | La época con validación terminó en 47,53 s y dejó un checkpoint y su historial. | Usar CUDA para el entrenamiento definitivo. La prueba sirve como comprobación técnica. |
+# | Corrida definitiva | ¿Qué rendimiento alcanza la CNN desde cero con el reparto por grupos? | Misma arquitectura, CUDA, hasta 12 épocas, lote de 32. Selección por F1 macro en `valid`. | Entrenamiento en `train_augmented`, selección en `valid` y evaluación en `test`, todos definitivos | El F1 macro de validación llegó a su máximo en la época 12. | Conservar ese checkpoint para evaluar la CNN y compararla con la ResNet bajo el mismo protocolo. |
+#
+# El historial de la primera prueba está en `output/cuda-prueba-20261126-212552/history_cnn_custom.json`.
+# El de la segunda se distribuye como `output/grupos-v1/history_cnn_custom.json`.
+# [Registro de particiones y checkpoints](splits/README.md#checkpoints-evaluados-y-pesos-anteriores).
+#
+# Los repartos difieren, así que una comparación de métricas entre las dos corridas
+# mezclaría el efecto de la partición con el de las épocas. El registro también conserva
+# el hash de otro checkpoint anterior. Las dos corridas de la tabla son las que cuentan
+# con historial por época para esta arquitectura.
 
 # %%
 classifier.set_active_model("cnn_custom")
@@ -744,12 +767,20 @@ mostrar(
 # %% [markdown]
 # ### Curvas de entrenamiento y matriz de confusión (Modelo B)
 #
-# La CNN completó 12 épocas. Su F1 macro de validación subió de 4,18 % en la primera
-# a un máximo de **34,83 % en la época 12**. En el mismo período la accuracy de
-# entrenamiento subió de 6,25 % a 41,55 % y la de validación de 7,88 % a 37,20 %.
-# La pérdida de validación repuntó en las épocas 6 y 7 y volvió a bajar hasta el
-# final. Los avances en las dos particiones indican que seguía aprendiendo en la
-# última época.
+# Cada fila del historial es una observación de la **misma corrida definitiva**.
+# La pérdida de entrenamiento bajó durante toda la corrida. La de validación repuntó
+# en las épocas 6 y 7 y luego bajó hasta su mínimo al final. La accuracy mejoró en
+# ambas particiones y terminó en 41,55 % en entrenamiento y 37,20 % en validación.
+# El F1 macro de validación pasó de 33,31 % en la época 10 a 34,71 % en la 11 y
+# alcanzó su máximo de **34,83 % en la época 12**.
+#
+# La CNN todavía mejoraba al agotarse el presupuesto de épocas, con una ganancia
+# pequeña al final. Una corrida más larga con el mismo reparto permitiría probar si
+# esa mejora continúa. Con el protocolo evaluado, la ResNet obtuvo mayor F1 macro
+# en test y en el conjunto independiente, por lo que la elegimos para clasificar.
+# La capacidad de los modelos y el preentrenamiento son posibles factores de esa
+# diferencia. Para medir el aporte de cada uno haría falta variar un factor por vez.
+# [Comparación final](#12-comparación-y-elección-final).
 #
 # En test, la confusión más frecuente fue predecir Boston Terrier en 10 fotos de
 # Bulldog. La tabla por raza muestra cero aciertos en Borzoi, Corgi y Great Dane.
@@ -757,7 +788,8 @@ mostrar(
 # %%
 history_b = load_history("cnn_custom")
 if history_b is not None:
-    mostrar(history_b)
+    with pl.Config(tbl_rows=-1):
+        mostrar(history_b)
     plot_training(history_b, "Modelo B")
 
 # %%
