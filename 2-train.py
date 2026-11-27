@@ -91,6 +91,7 @@ NOMBRES_ES = {
     "model": "modelo",
     "strategy": "estrategia",
     "epoch": "época",
+    "duration_seconds": "duración (s)",
     "serie": "serie",
     "loss": "loss",
     "value": "valor",
@@ -135,7 +136,8 @@ def mostrar(df: pl.DataFrame) -> None:
 print("dataset:", settings.dataset_path)
 print("splits: ", settings.splits_path)
 print("modelos:", settings.model_path)
-print("device: ", "cuda" if torch.cuda.is_available() else "cpu")
+print("salidas:", settings.output_path)
+print("dispositivo:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU")
 
 # %% [markdown]
 # ## 2. Dataset y splits
@@ -564,7 +566,7 @@ for success, datasets in (
 # entrena solo la cabeza: sirve como comparación de estrategias.
 #
 # `train_classifier()` entrena con `train_augmented`, elige el mejor checkpoint por F1 en
-# validación (early stopping) y guarda el historial en `output/history_resnet18_finetuned.json`.
+# validación (early stopping) y guarda `history_resnet18_finetuned.json` en `OUTPUT_PATH`.
 
 # %%
 classifier = build_classifier(settings)
@@ -709,8 +711,8 @@ plot_confusion(evaluation_a, "Modelo A")
 # %% [markdown]
 # ## 7. Modelo B (obligatorio): CNN propia
 #
-# `train_classifier` con el modelo activo `cnn_custom` guarda el checkpoint en
-# `models/cnn_custom.pth` (si ya existe, se omite el entrenamiento).
+# `train_classifier` con el modelo activo `cnn_custom` guarda el checkpoint en `MODEL_PATH`,
+# con el nombre `cnn_custom.pth` por defecto. Si ya existe, se omite el entrenamiento.
 # La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
 #
 # | Decisión | Elección | Por qué |
@@ -980,8 +982,8 @@ display_baseline_figure(figure, "Errores del Modelo A (mayor confianza)")
 def model_cost(model: torch.nn.Module, name: str, checkpoint: Path | None = None) -> dict:
     """Parámetros, tamaño, latencia en CPU y dimensión del embedding."""
     parameters = sum(parameter.numel() for parameter in model.parameters())
-    model.eval()
-    batch = torch.zeros(8, 3, settings.image_size, settings.image_size)
+    model = model.cpu().eval()
+    batch = torch.zeros(8, 3, settings.image_size, settings.image_size, device="cpu")
     with torch.no_grad():
         model(batch)
         start = time.perf_counter()

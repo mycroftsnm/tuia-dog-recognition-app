@@ -98,7 +98,7 @@ Requiere [credenciales de Kaggle](https://www.kaggle.com/docs/api) configuradas.
 
 ## Configurá tus modelos
 
-Entrená tus modelos (Etapa 2) con `2-train.ipynb` (en Google Colab, con GPU) y guardá los checkpoints dentro de la carpeta `models`. El backend admite modelos con extensión **.pth** (PyTorch, se carga con `torch.load` el modelo completo) o **.onnx** (se carga con `onnxruntime`). Si usan otro framework, expórtenlo a **.onnx**.
+Entrená tus modelos (Etapa 2) con `2-train.ipynb` en Google Colab o [en Windows con una GPU NVIDIA](#entrenamiento-local-con-cuda-en-windows). Guardá los checkpoints dentro de la carpeta `models`. El backend admite modelos con extensión **.pth** (PyTorch, se carga con `torch.load` el modelo completo) o **.onnx** (se carga con `onnxruntime`). Si usan otro framework, expórtenlo a **.onnx**.
 
 Recordá actualizar la configuración del `.env` correspondiente (`RESNET18_MODEL_NAME`, `CNN_CUSTOM_MODEL_NAME`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `SIMILARITY_THRESHOLD`) para que apunte a tus modelos.
 
@@ -225,6 +225,40 @@ uvicorn frontend.app:app --port 8080
 
 - Frontend: `http://localhost:8080`
 - Backend: `http://localhost:8000/docs` (Swagger) y `http://localhost:8000/health` (muestra el modelo seleccionado y los checkpoints encontrados)
+
+## Entrenamiento local con CUDA en Windows
+
+Con el driver NVIDIA y las dependencias del proyecto instalados, reemplazá PyTorch
+y torchvision en la `.venv` por las versiones para CUDA 12.6. Ejecutá estos comandos en
+PowerShell desde la raíz del repo.
+
+```powershell
+nvidia-smi
+uv pip install --python .\.venv\Scripts\python.exe --index-url https://download.pytorch.org/whl/cu126 "torch==2.11.0+cu126" "torchvision==0.26.0+cu126"
+.\.venv\Scripts\python.exe -c "import torch; print(torch.__version__); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+```
+
+Las [versiones oficiales de PyTorch](https://pytorch.org/get-started/previous-versions/) incluyen el runtime CUDA. En `2-train.ipynb`, elegí el kernel de la `.venv` y reinicialo si estaba abierto. La primera celda indica el dispositivo detectado.
+
+Para medir una época completa de cada modelo, incluida la validación, ejecutá estos comandos
+en una terminal nueva desde la raíz. Usá un nombre de corrida nuevo para que el entrenamiento
+genere otros checkpoints e historiales. El tamaño de lote es 32. Si CUDA se queda sin memoria,
+podés probar con `$env:TRAIN_BATCH_SIZE = "16"` en una corrida nueva.
+
+```powershell
+$runId = "cuda-prueba-$(Get-Date -Format yyyyMMdd-HHmmss)"
+$env:MODEL_PATH = Join-Path $PWD "models/$runId"
+$env:OUTPUT_PATH = Join-Path $PWD "output/$runId"
+$env:TORCH_HOME = Join-Path $PWD "models/torch"
+$env:TRAIN_EPOCHS = "1"
+$env:TRAIN_BATCH_SIZE = "32"
+.\.venv\Scripts\python.exe scripts/train_classifier.py --model resnet18_finetuned --skip-eval
+.\.venv\Scripts\python.exe scripts/train_classifier.py --model cnn_custom --skip-eval
+```
+
+El tiempo de cada época aparece en la terminal y en `history_<modelo>.json`. Para una corrida
+completa, usá otro nombre de corrida y ajustá `TRAIN_EPOCHS` (12 por defecto). Si querés correr
+la notebook con estas rutas y parámetros, iniciá Jupyter desde la misma terminal.
 
 ## Scripts provistos
 

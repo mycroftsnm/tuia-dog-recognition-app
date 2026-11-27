@@ -6,6 +6,7 @@ import logging
 import random
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import cv2
@@ -306,13 +307,13 @@ class ClassifierService:
         `valid.csv` para early stopping. Guarda el historial por época en
         `output/history_<modelo>.json` para graficar las curvas en la notebook.
 
-        Si el checkpoint ya existe, **se omite el entrenamiento**: borrá
-        `models/<modelo>.pth` si querés reentrenarlo.
+        Si el checkpoint ya existe, se omite el entrenamiento. Para una corrida
+        nueva, configurá otras rutas para el checkpoint y el historial.
         """
         checkpoint = self.active_checkpoint
         if checkpoint.exists():
             logger.info(
-                "Checkpoint ya existe (%s): se omite el entrenamiento. Borralo para reentrenar.",
+                "Checkpoint ya existe (%s): se omite el entrenamiento. Configurá otra ruta para reentrenar.",
                 checkpoint,
             )
             return
@@ -354,16 +355,19 @@ class ClassifierService:
         )
 
         for epoch in range(1, config.epochs + 1):
+            started = perf_counter()
             train_result = self._run_loader(model, train_loader, criterion, device, optimizer)
             valid_result = self._run_loader(model, valid_loader, criterion, device)
             valid_metrics, _ = self._metrics(
                 valid_result["labels"], valid_result["preds"], len(class_names)
             )
             scheduler.step()
+            duration_seconds = perf_counter() - started
 
             history.append(
                 {
                     "epoch": epoch,
+                    "duration_seconds": round(duration_seconds, 2),
                     "train_loss": train_result["loss"],
                     "train_accuracy": train_result["accuracy"],
                     "valid_loss": valid_result["loss"],
@@ -372,13 +376,14 @@ class ClassifierService:
                 }
             )
             logger.info(
-                "época %02d | train loss %.4f acc %.3f | valid loss %.4f acc %.3f f1 %.3f",
+                "época %02d | train loss %.4f acc %.3f | valid loss %.4f acc %.3f f1 %.3f | %.1f s",
                 epoch,
                 train_result["loss"],
                 train_result["accuracy"],
                 valid_result["loss"],
                 valid_metrics["accuracy"],
                 valid_metrics["f1"],
+                duration_seconds,
             )
 
             if valid_metrics["f1"] > best_f1:
