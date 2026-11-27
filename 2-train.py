@@ -797,7 +797,8 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # ## 9. Embeddings de los modelos entrenados
 #
 # Comparación de baseline y modelos A y B como extractores de embeddings para la Etapa 1.
-# Usando misma galería, mismas consultas y misma métrica, se mide NDCG@10, precision@10 y accuracy del voto.
+# Con la misma galería, las mismas consultas y similitud coseno se miden NDCG@10, precision@10, accuracy y F1 macro del voto.
+# El umbral se calibró en validación con los embeddings del baseline y se comparte entre los tres extractores.
 
 # %%
 from sklearn.manifold import TSNE
@@ -817,9 +818,20 @@ def embed_rows(extractor, rows: pl.DataFrame, label: str, batch_size: int = 32) 
 
 
 def retrieval_metrics(
-    query_emb: np.ndarray, query_breeds: list[str], gallery_matrix: np.ndarray, k: int = 10
+    query_emb: np.ndarray,
+    query_breeds: list[str],
+    gallery_matrix: np.ndarray,
+    *,
+    k: int,
+    threshold: float,
 ) -> tuple[float, float, float, list[str]]:
-    """NDCG@10, precision@10, accuracy y etiquetas predichas por el voto."""
+    """Calcula las métricas del ranking coseno y del voto con el umbral indicado."""
+    voter = build_similarity(
+        settings.model_copy(update={
+            "similarity_metric": "cosine", "top_k": k, "similarity_threshold": threshold,
+        }),
+        store=None,
+    )
     cosine = np.clip(query_emb @ gallery_matrix.T, -1.0, 1.0)
     order = np.argsort(-cosine, axis=1)[:, :k]
     ndcgs, precisions, predicted = [], [], []
@@ -832,7 +844,7 @@ def retrieval_metrics(
             )
             for column in order[index]
         ]
-        predicted.append(baseline.predict_breed_from_neighbors(neighbors)[0])
+        predicted.append(voter.predict_breed_from_neighbors(neighbors)[0])
         relevance = [float(gallery_breeds[column] == breed) for column in order[index]]
         ndcgs.append(ndcg_at_k(relevance, k=k, n_relevant=gallery_counts.get(breed, 0)))
         precisions.append(float(np.mean(relevance)))
@@ -855,6 +867,7 @@ test_b = embed_rows(classifier.extract_custom_embeddings, test_df, "Test B")
 independent_b = embed_rows(classifier.extract_custom_embeddings, independent_eval, "Independiente B")
 
 # %%
+retrieval_threshold = baseline_thresholds["cosine"]
 gallery_by_model = {"baseline": gallery_emb, "Modelo A": gallery_a, "Modelo B": gallery_b}
 embeddings_by_model = {
     "baseline": (baseline_test, baseline_independent),
@@ -868,7 +881,7 @@ for name, (test_embedding, independent_embedding) in embeddings_by_model.items()
         ("independiente", independent_embedding, independent_eval["breed"].to_list()),
     ):
         ndcg, precision, accuracy, predicted = retrieval_metrics(
-            embedding, breeds, gallery_by_model[name]
+            embedding, breeds, gallery_by_model[name], k=BASELINE_K, threshold=retrieval_threshold
         )
         # Macro sobre las razas presentes, igual que el clasificador.
         f1 = f1_score(
@@ -884,6 +897,8 @@ for name, (test_embedding, independent_embedding) in embeddings_by_model.items()
                 "F1 macro (%)": 100 * f1,
             }
         )
+print(f"Métrica: cosine | K: {BASELINE_K} | Umbral: {retrieval_threshold:.3f}")
+print(f"Consultas por extractor: {test_df.height} de test y {independent_eval.height} independientes.")
 with pl.Config(tbl_cols=-1, float_precision=4):
     display(pl.DataFrame(retrieval_rows))
 
