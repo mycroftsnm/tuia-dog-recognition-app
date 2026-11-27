@@ -20,11 +20,18 @@ La auditoría cruza los originales de `train`, `valid` y `test` con SHA-256, cor
 
 Las rondas posteriores a la auditoría histórica incorporaron 309 pares confirmados y cuatro descartes. La auditoría del reparto final dejó cero grupos confirmados en más de un split y cero candidatos pendientes. Se excluyeron 22 grupos con etiquetas discordantes, que reunían 50 originales que habían pasado el filtro de calidad. Los 4.107 aumentos se generaron desde los originales de `train`, con 150 imágenes por raza después de equilibrar.
 
-## Checkpoints de la partición anterior
+## Checkpoints evaluados y pesos anteriores
 
-Los cuatro checkpoints de clasificación existentes se conservaron en sus rutas originales. Fueron entrenados con la partición anterior, cuyos manifiestos están en el commit `4187cc43d671320cbebd004b86083a1db509caf9`. Las métricas y las salidas guardadas de `2-train.ipynb` son históricas. Para el próximo entrenamiento configurá otros valores de `MODEL_PATH` y `OUTPUT_PATH`.
+Los checkpoints definitivos se entrenaron con la partición descrita arriba. Sus resultados están en `2-train.ipynb` y la app los carga desde estas rutas.
 
-| Archivo relativo a `models/` | SHA-256 |
+| Archivo activo | SHA-256 |
+| --- | --- |
+| `models/cnn_custom.pth` | `ffe162f151b38191f2d2cc4e3c71ecaea06aaf4f191ab8b8a03fbdaab9c8e355` |
+| `models/resnet18_finetuned.pth` | `a924cf71adb9fbb4ac3852e2ab7db03e909b2cafc248bba013a4201db4e59667` |
+
+Los dos pesos que antes ocupaban esas rutas quedaron respaldados fuera del repositorio. La tabla conserva las rutas históricas de los cuatro pesos de la partición anterior, cuyos manifiestos están en el commit `4187cc43d671320cbebd004b86083a1db509caf9`.
+
+| Ruta histórica relativa a `models/` | SHA-256 |
 | --- | --- |
 | `cnn_custom.pth` | `d823616a4a26ef579b99866c8db967ab05aac806c3eb2318f6899c93e81d8e90` |
 | `resnet18_finetuned.pth` | `6bdd648dfbe8211ab15e5c082fdcd8a04bf4989851d0c0ca703f6d2550eeadfa` |
