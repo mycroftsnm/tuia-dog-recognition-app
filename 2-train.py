@@ -1056,6 +1056,37 @@ for axis, row in zip(axes.flat, examples):
 display_baseline_figure(figure, "Errores del Modelo A (mayor confianza)")
 
 # %% [markdown]
+# ### Un error de la CNN propia (Modelo B)
+#
+# En las predicciones guardadas de la corrida definitiva (`output/grupos-v1/eval_cnn_custom.json`),
+# elegimos `train/Bulldog/062.jpg`, el caso con mayor score del par Bulldog → Boston Terrier.
+# El prefijo `train/` indica la carpeta de origen en Kaggle. La foto pertenece al test
+# definitivo. [Manifiesto de test](splits/test.csv).
+#
+# Para esta foto, predecir Boston Terrier cuenta como **falso negativo para Bulldog**
+# y **falso positivo para Boston Terrier**. El primer plano frontal resalta el hocico
+# corto y la franja blanca de la cara. El cuerpo se ve parcialmente, así que el encuadre
+# podría haber dificultado distinguir la raza por sus proporciones.
+
+# %%
+example_b_path = "train/Bulldog/062.jpg"
+if example_b_path in evaluation_b["paths"]:
+    example_b_index = evaluation_b["paths"].index(example_b_path)
+    real_b = evaluation_b["labels"][example_b_index]
+    predicted_b = evaluation_b["preds"][example_b_index]
+    score_b = evaluation_b["scores"][example_b_index]
+
+    figure = Figure(figsize=(5, 5), layout="constrained")
+    axis = figure.subplots()
+    axis.imshow(cv2.cvtColor(baseline_image(example_b_path), cv2.COLOR_BGR2RGB))
+    prediction_b = f"Predicción: {predicted_b} · score: {score_b:.4f}"
+    axis.set_title(f"Etiqueta real: {real_b}\n{prediction_b}")
+    axis.axis("off")
+    display_baseline_figure(figure, f"{example_b_path} · Etiqueta real: {real_b} · {prediction_b}")
+else:
+    print(f"La foto {example_b_path} está fuera de la evaluación actual.")
+
+# %% [markdown]
 # ## 11. Costo computacional
 #
 # El tiempo de CPU por imagen se calculó **en lotes de ocho**. Después de una pasada
