@@ -558,33 +558,39 @@ else:
 # ## 3.3 Control de calidad y filtrado
 #
 # Aplicamos reglas **explícitas y en orden**, y reportamos cuántas imágenes descarta cada
-# una. El orden es eficiente: primero lo barato (legibilidad), después lo que ya
-# está calculado (borrosidad, exposición) y al final los duplicados.
+# una. Primero comprobamos si la imagen se puede leer. Después revisamos su resolución,
+# borrosidad y exposición, y al final buscamos duplicados.
 #
 # Reglas:
 # 1. Archivo corrupto o que no se puede decodificar.
-# 2. Varianza del Laplaciano < 40 (imagen borrosa).
-# 3. Brillo extremo (fuera de [15, 240] en escala de grises).
-# 4. Duplicados exactos (archivos idénticos, SHA-256).
-# 5. Casi-duplicados (misma foto recomprimida o redimensionada).
+# 2. Lado más corto menor a 224 píxeles (R7). El mínimo coincide con el tamaño
+#    de entrada de los modelos, así exigimos al menos 224 píxeles en cada lado.
+# 3. Varianza del Laplaciano < 40 (imagen borrosa).
+# 4. Brillo extremo (fuera de [15, 240] en escala de grises).
+# 5. Duplicados exactos (archivos idénticos, SHA-256).
+# 6. Casi-duplicados (misma foto recomprimida o redimensionada).
 #
-# El filtrado se aplica a los tres splits por igual. De cada grupo de duplicados se conserva
+# El filtrado se aplica por igual a las tres carpetas de origen de Kaggle. De cada grupo de duplicados se conserva
 # **una copia**; los splits se redefinen en 3.7 sobre el conjunto ya limpio.
 
 # %%
 # Umbrales de filtrado
+MIN_SHORT_SIDE = 224
+RESOLUTION_RULE = f"R7: Lado menor a {MIN_SHORT_SIDE} px"
 BLUR_THRESHOLD = 40
 BRIGHTNESS_MIN = 15.0
 BRIGHTNESS_MAX = 240.0
 
 # %%
-# Reglas visuales 1-3 en un único `when/then` encadenado: la primera que dispara queda
-# registrada en `quality_rule`. Las que pasan pasan a la etapa de duplicados.
+# La primera regla visual que se cumple queda en quality_rule.
+# Las imágenes que superan estos controles pasan a la etapa de duplicados.
 quality = image_meta.with_columns(
     pl.min_horizontal("width", "height").alias("min_side")
 ).with_columns(
     pl.when(~pl.col("readable"))
     .then(pl.lit("R1: No legible o corrupta"))
+    .when(pl.col("min_side") < MIN_SHORT_SIDE)
+    .then(pl.lit(RESOLUTION_RULE))
     .when(pl.col("laplacian_var") < BLUR_THRESHOLD)
     .then(pl.lit("R2: Borrosa (Laplaciano < {})".format(BLUR_THRESHOLD)))
     .when((pl.col("brightness") < BRIGHTNESS_MIN) | (pl.col("brightness") > BRIGHTNESS_MAX))
@@ -600,6 +606,9 @@ mostrar(
     .rename({"len": "images"})
     .sort(["quality_rule", "split"])
 )
+
+resolution_discards = quality.filter(pl.col("quality_rule") == RESOLUTION_RULE).height
+print(f"Descartes por resolución (lado corto menor a {MIN_SHORT_SIDE} px) = {resolution_discards}")
 
 
 # %% [markdown]
