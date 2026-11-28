@@ -42,6 +42,8 @@ import polars as pl
 from IPython.display import display
 from PIL import Image, UnidentifiedImageError
 
+# Los gráficos quedan embebidos como PNG y se ven en GitHub.
+alt.renderers.enable("png", scale_factor=1.5)
 alt.data_transformers.disable_max_rows()
 
 ROOT = Path.cwd()

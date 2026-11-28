@@ -89,6 +89,7 @@ ultralytics>=8.3
 urllib3==2.6.3
 uvicorn==0.44.0
 uvloop==0.22.1; sys_platform != 'win32'
+vl-convert-python==1.9.0.post1
 watchfiles==1.1.1
 wcwidth==0.6.0
 websockets==16.0

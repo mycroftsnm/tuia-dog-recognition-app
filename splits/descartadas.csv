@@ -101,7 +101,7 @@ train,Doberman,train/Doberman/043.jpg,R4: Duplicado exacto,train/Doberman/006.jp
 train,Doberman,train/Doberman/073.jpg,R5: Casi duplicado (misma foto),train/Doberman/026.jpg,train
 train,Doberman,train/Doberman/084.jpg,R4: Duplicado exacto,test/Doberman/02.jpg,test
 train,French Bulldog,train/French Bulldog/07.jpg,R6: Grupo con etiquetas de raza conflictivas,,
-train,French Bulldog,train/French Bulldog/85.jpg,R3: 15.0 < Brillo < 240.0,,
+train,French Bulldog,train/French Bulldog/85.jpg,R3: Brillo < 15.0 o Brillo > 240.0,,
 train,French Bulldog,train/French Bulldog/93.jpg,R6: Grupo con etiquetas de raza conflictivas,,
 train,German Sheperd,train/German Sheperd/018.jpg,R4: Duplicado exacto,train/German Sheperd/010.jpg,train
 train,Golden Retriever,train/Golden Retriever/048.jpg,R6: Grupo con etiquetas de raza conflictivas,,

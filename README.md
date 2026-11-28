@@ -275,9 +275,10 @@ $env:TRAIN_BATCH_SIZE = "32"
 .\.venv\Scripts\python.exe scripts/train_classifier.py --model cnn_custom --skip-eval
 ```
 
-El tiempo de cada época aparece en la terminal y en `history_<modelo>.json`. Para una corrida
-completa, usá otro nombre de corrida y ajustá `TRAIN_EPOCHS` (12 por defecto). Si querés correr
-la notebook con estas rutas y parámetros, iniciá Jupyter desde la misma terminal.
+El tiempo de cada época aparece en la terminal y en `history_<modelo>.json`. Para reproducir
+el entrenamiento de los pesos entregados, usá rutas nuevas y configurá `TRAIN_EPOCHS=12`.
+Los archivos `.env.*.example` configuran un máximo de 100 épocas para nuevos entrenamientos.
+Si querés correr la notebook con estas rutas y parámetros, iniciá Jupyter desde la misma terminal.
 
 ## Scripts de apoyo
 

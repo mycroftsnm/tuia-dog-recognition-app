@@ -73,6 +73,8 @@ from lib.config import settings
 from lib.evaluation.metrics import ndcg_at_k
 from lib.schemas import Neighbor
 
+# Los gráficos quedan embebidos como PNG y se ven en GitHub.
+alt.renderers.enable("png", scale_factor=1.5)
 alt.data_transformers.disable_max_rows()
 
 SEED = 42
@@ -728,10 +730,28 @@ plot_confusion(evaluation_a, "Modelo A")
 # | Cabeza de clasificación | Dropout de `0.2` antes de `Linear(512, 70)`. |
 #
 # La arquitectura está en `src/lib/models/modelo_b_cnn.py`.
-# Entrenamos usamos AdamW con tasa inicial `3e-4`, `weight_decay=1e-4`,
-# `Batch Size=32`, todos los hiperparámetros configurados por variables de entorno.
+# El checkpoint entregado se entrenó durante 12 épocas con AdamW (tasa inicial
+# `3e-4`, `weight_decay=1e-4`), `CosineAnnealingLR`, *label smoothing* de `0.1`
+# y lotes de 32 imágenes. Los archivos de ejemplo permiten hasta 100 épocas
+# para nuevos entrenamientos. Para reproducir este entrenamiento, fijá
+# `TRAIN_EPOCHS=12` antes de iniciar el kernel y usá una ruta de checkpoint nueva.
+
+# %% [markdown]
+# ### Experimentos registrados
 #
-# Se entrena durante 100 épocas (con early stopping si la métrica de validación deja de mejorar) y se guarda el mejor modelo según la métrica de validación.
+# | Prueba | Pregunta | Configuración | Partición | Observación | Decisión |
+# | --- | --- | --- | --- | --- | --- |
+# | Prueba local de CUDA | ¿La CNN puede completar una época con validación en GPU? | CNN desde cero, CUDA, 1 época, lote de 32 | `train_augmented` y `valid` anteriores al reparto por grupos | La época con validación terminó en 47,53 s y dejó un checkpoint y su historial. | Usar CUDA para el entrenamiento de entrega. La prueba sirve como comprobación técnica. |
+# | Entrenamiento de entrega | ¿Qué rendimiento alcanza la CNN desde cero con el reparto por grupos? | Misma arquitectura, CUDA, 12 épocas, lote de 32. Selección por F1 macro en `valid`. | Entrenamiento en `train_augmented`, selección en `valid` y evaluación en `test`, todos del reparto por grupos | El F1 macro de validación llegó a su máximo en la época 12. | Conservar ese checkpoint para evaluar la CNN y compararla con la ResNet bajo el mismo protocolo. |
+#
+# El historial de la primera prueba está en `output/cuda-prueba-20261126-212552/history_cnn_custom.json`.
+# El de la segunda se distribuye como `output/grupos-v1/history_cnn_custom.json`.
+# [Registro de particiones y checkpoints](splits/README.md#checkpoints-evaluados-y-pesos-anteriores).
+#
+# Los repartos difieren, así que una comparación de métricas entre las dos corridas
+# mezclaría el efecto de la partición con el de las épocas. El registro también conserva
+# el hash de otro checkpoint anterior. Las dos corridas de la tabla son las que cuentan
+# con historial por época para esta arquitectura.
 
 # %%
 classifier.set_active_model("cnn_custom")
@@ -752,14 +772,19 @@ mostrar(
 # %% [markdown]
 # ### Curvas de entrenamiento y matriz de confusión (Modelo B)
 #
+# El historial corresponde al entrenamiento de 12 épocas del checkpoint entregado.
 # La pérdida de entrenamiento bajó durante toda la corrida. La de validación repuntó
 # en las épocas 6 y 7 y luego bajó hasta su mínimo al final. La accuracy mejoró en
 # ambas particiones y terminó en 41,55 % en entrenamiento y 37,20 % en validación.
 # El F1 macro de validación pasó de 33,31 % en la época 10 a 34,71 % en la 11 y
 # alcanzó su máximo de **34,83 % en la época 12**.
 #
-# La ResNet finetuneada obtuvo mayor F1 macro en test y en el conjunto independiente, por lo que la elegimos para clasificar.
-
+# La CNN todavía mejoraba al agotarse el presupuesto de épocas, con una ganancia
+# pequeña al final. Una corrida más larga con el mismo reparto permitiría probar si
+# esa mejora continúa. Con el protocolo evaluado, la ResNet obtuvo mayor F1 macro
+# en test y en el conjunto independiente, por lo que la elegimos para clasificar.
+# La capacidad de los modelos y el preentrenamiento son posibles factores de esa
+# diferencia. Para medir el aporte de cada uno haría falta variar un factor por vez.
 # [Comparación final](#12-comparación-y-elección-final).
 #
 # En test, la confusión más frecuente fue predecir Boston Terrier en 10 fotos de
@@ -941,7 +966,9 @@ with pl.Config(tbl_cols=-1, float_precision=4):
 # menor NDCG@10 en ambos conjuntos.
 #
 # Elegimos el **baseline** para `EMBEDDING_MODEL` porque priorizamos el ranking
-# en las fotos independientes (más cercanas a la realidad)
+# en las fotos independientes, que se acercan al tipo de consultas previsto para
+# la app. La ventaja se observó en esas 68 consultas y queda por comprobar en
+# otra muestra externa.
 #
 # La visualización t-SNE usa 171 imágenes de test de ocho razas seleccionadas por
 # las confusiones del Modelo A. En los embeddings de ese subconjunto, la silueta
@@ -1065,6 +1092,7 @@ if example_b_path in evaluation_b["paths"]:
 else:
     print(f"La foto {example_b_path} está fuera de la evaluación actual.")
 
+
 # %% [markdown]
 # ## 11. Costo computacional
 #
@@ -1079,9 +1107,14 @@ else:
 # espacio en disco y más tiempo de CPU por imagen. El extractor baseline tardó
 # **11,99 ms por imagen**. La tabla registra el tamaño de los checkpoints de los dos
 # modelos entrenados.
+#
+# La CNN reduce la resolución después de sus dos primeras convoluciones, mientras
+# que la primera convolución de ResNet18 ya reduce el tamaño a la mitad en cada
+# eje. Para una imagen de 224×224, las convoluciones de la CNN realizan unos
+# 2.587 millones de operaciones de multiplicación y acumulación, frente a 1.814
+# millones en ResNet18. Esa diferencia ayuda a explicar el mayor tiempo de CPU
+# observado a pesar de que la CNN tiene menos parámetros.
 
-# El Modelo B es más pequeño porque tiene menos parámetros, pero tarda más en CPU porque
-# sus convoluciones son más costosas que las de la ResNet18, que reduce rápidamente la resolución de los featuremaps, mientras que el Modelo B mantiene la resolución más tiempo.
 # %%
 def model_cost(model: torch.nn.Module, name: str, checkpoint: Path | None = None) -> dict:
     """Parámetros, tamaño, latencia en CPU y dimensión del embedding."""
@@ -1190,7 +1223,9 @@ print(f"Embeddings para la búsqueda (EMBEDDING_MODEL): {best_embeddings}")
 #   F1 macro en el independiente (57,19 % frente a 16,00 %). La estimación
 #   de rendimiento independiente corresponde a las 20 razas de esa muestra.
 # - **Búsqueda por similitud.** Elegimos el **baseline preentrenado** por su mayor
-#   NDCG@10 en las 68 consultas independientes, si bien la ResNet18 ajustada obtuvo mayor NDCG@10 en test, priorizamos el resultado en el conjunto independiente que es más cercano a la realidad.
+#   NDCG@10 en las 68 consultas independientes. En test, la ResNet ajustada ordenó
+#   mejor los vecinos. La preferencia para la app depende de cuánto se parezcan las
+#   consultas reales a las de la muestra independiente.
 
 # %% [markdown]
 # ## 13. Checkpoints
