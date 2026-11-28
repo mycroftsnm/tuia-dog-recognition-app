@@ -3,11 +3,15 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from threading import Lock
 from uuid import uuid4
 
 import cv2
 import numpy as np
+import onnxruntime
+import torch
 
+from lib.image_pipeline import preprocess, to_batch
 from lib.schemas import ClassifyResult, DetectResult, DogDetection
 from lib.services.classifier_service import ClassifierService
 
@@ -15,15 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class DetectionService:
-    """Etapa 3: pipeline de deteccion y clasificacion.
-
-    Funciones a implementar por el estudiante:
-      - detect_dogs(image)
-      - classify_detected_dog(crop)
-
-    La orquestacion (predict: deteccion -> recorte -> clasificacion -> JSON)
-    ya esta provista.
-    """
+    """Etapa 3: deteccion, recorte y clasificacion de perros."""
 
     def __init__(
         self,
@@ -36,6 +32,8 @@ class DetectionService:
         self.yolo_model_name = yolo_model
         self.conf_threshold = conf_threshold
         self.dog_class_id = dog_class_id
+        self._detector = None
+        self._detector_lock = Lock()
 
     @staticmethod
     def _clip_xyxy(
@@ -59,32 +57,72 @@ class DetectionService:
         return image
 
     # ------------------------------------------------------------------
-    # Etapa 3: funciones a implementar
+    # Etapa 3: deteccion y clasificacion
     # ------------------------------------------------------------------
 
     def detect_dogs(self, image: np.ndarray) -> list[tuple[tuple[int, int, int, int], float]]:
-        """
-        Detecta todos los perros presentes en la imagen usando un modelo YOLO
-        pre-entrenado (ej: YOLOv8n via ultralytics). No es necesario entrenar
-        el detector.
+        """Detecta perros en una imagen BGR uint8 y devuelve cajas en pixeles y confianza."""
+        with self._detector_lock:
+            if self._detector is None:
+                from ultralytics import YOLO
 
-        Sugerencias:
-          - self.yolo_model_name, self.conf_threshold y self.dog_class_id
-            (clase 'dog' = 16 en COCO) vienen de la configuracion (.env).
-          - Debe funcionar con un perro, multiples perros y escenas complejas.
+                self._detector = YOLO(self.yolo_model_name)
 
-        Retorna una lista de ((x1, y1, x2, y2), confidence) en pixeles.
-        """
-        raise NotImplementedError("Etapa 3: implementar detect_dogs")
+            result = self._detector.predict(
+                source=image,
+                conf=self.conf_threshold,
+                classes=[self.dog_class_id],
+                verbose=False,
+            )[0]
+
+        boxes = result.boxes
+        if boxes is None:
+            return []
+
+        height, width = image.shape[:2]
+        detections = []
+        for coords, confidence in zip(boxes.xyxy.tolist(), boxes.conf.tolist()):
+            box = self._clip_xyxy(*(int(value) for value in coords), height, width)
+            detections.append((box, float(confidence)))
+        return detections
 
     def classify_detected_dog(self, crop: np.ndarray) -> tuple[str, float]:
-        """
-        Clasifica la raza del recorte de un perro detectado usando el modelo
-        entrenado en la Etapa 2 (self.classifier.load_model()).
+        """Devuelve la raza y su probabilidad para un recorte BGR uint8.
 
-        El recorte llega en BGR (OpenCV). Retorna (raza, score).
+        Los modelos ONNX guardan sus razas como una lista JSON en la metadata
+        `class_names`.
         """
-        raise NotImplementedError("Etapa 3: implementar classify_detected_dog")
+        model = self.classifier.load_model()
+        batch = to_batch(preprocess(crop, self.classifier.image_size))
+
+        if isinstance(model, onnxruntime.InferenceSession):
+            metadata = model.get_modelmeta().custom_metadata_map
+            try:
+                class_names = json.loads(metadata["class_names"])
+            except (KeyError, json.JSONDecodeError) as exc:
+                raise ValueError(
+                    "ONNX metadata must contain 'class_names' as a JSON list of breeds."
+                ) from exc
+            input_name = model.get_inputs()[0].name
+            logits = torch.from_numpy(model.run(None, {input_name: batch})[0])
+        else:
+            class_names = getattr(model, "class_names", None)
+            inputs = torch.from_numpy(batch)
+            device = next(model.parameters(), inputs).device
+            model.eval()
+            with torch.no_grad():
+                logits = model(inputs.to(device))
+
+        if (
+            not isinstance(class_names, (list, tuple))
+            or not class_names
+            or logits.shape != (1, len(class_names))
+            or not all(isinstance(breed, str) for breed in class_names)
+        ):
+            raise ValueError("Checkpoint 'class_names' must provide one breed per logit.")
+
+        score, index = logits[0].softmax(dim=0).max(dim=0)
+        return class_names[index.item()], score.item()
 
     # ------------------------------------------------------------------
     # Orquestacion provista

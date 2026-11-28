@@ -31,14 +31,14 @@ class Settings(BaseSettings):
 
     # Busqueda por similitud
     similarity_metric: str = os.getenv("SIMILARITY_METRIC", "cosine")
-    similarity_threshold: float = os.getenv("SIMILARITY_THRESHOLD", 0.55)
+    similarity_threshold: float = os.getenv("SIMILARITY_THRESHOLD", 0.674)
     top_k: int = os.getenv("TOP_K", 10)
     image_size: int = os.getenv("IMAGE_SIZE", 224)
     embedding_dim: int = os.getenv("EMBEDDING_DIM", 512)
 
     # Configuracion de YOLO (Etapa 3)
-    yolo_model: str = os.getenv("YOLO_MODEL", "yolov8n.pt")
-    yolo_conf_threshold: float = os.getenv("YOLO_CONF_THRESHOLD", 0.25)
+    yolo_model: str = os.getenv("YOLO_MODEL", str(model_path / "yolov8n.pt"))
+    yolo_conf_threshold: float = os.getenv("YOLO_CONF_THRESHOLD", 0.15)
     yolo_dog_class_id: int = os.getenv("YOLO_DOG_CLASS_ID", 16)
 
     # Paths
@@ -46,7 +46,15 @@ class Settings(BaseSettings):
     data_path: Path = Path(os.getenv("DATA_PATH", "data"))
     dataset_path: Path = Path(os.getenv("DATASET_PATH", "data/dataset"))
     output_path: Path = Path(os.getenv("OUTPUT_PATH", "output"))
+    splits_path: Path = Path(os.getenv("SPLITS_PATH", "splits"))
     max_workers: int = os.getenv("MAX_WORKERS", 2)
+
+    # Entrenamiento (Etapa 2)
+    train_epochs: int = os.getenv("TRAIN_EPOCHS", 12)
+    train_batch_size: int = os.getenv("TRAIN_BATCH_SIZE", 32)
+    train_learning_rate: float = os.getenv("TRAIN_LR", 3e-4)
+    train_patience: int = os.getenv("TRAIN_PATIENCE", 3)
+    train_strategy: str = os.getenv("TRAIN_STRATEGY", "full")
 
     # PostgreSQL / pgvector
     use_pgvector: bool = os.getenv("USE_PGVECTOR", "True").lower() == "true"

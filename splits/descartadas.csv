@@ -1,0 +1,212 @@
+split_original,breed,path,quality_rule,duplicate_of,duplicate_of_split
+test,American Spaniel,test/American Spaniel/07.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+test,Cockapoo,test/Cockapoo/05.jpg,R4: Duplicado exacto,test/Cockapoo/01.jpg,test
+test,Groenendael,test/Groenendael/10.jpg,R4: Duplicado exacto,test/Groenendael/02.jpg,test
+test,Irish Spaniel,test/Irish Spaniel/06.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+test,Newfoundland,test/Newfoundland/09.jpg,R4: Duplicado exacto,test/Newfoundland/08.jpg,test
+test,Newfoundland,test/Newfoundland/10.jpg,R4: Duplicado exacto,test/Newfoundland/08.jpg,test
+test,Pekinese,test/Pekinese/01.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Afghan,train/Afghan/016.jpg,R4: Duplicado exacto,test/Afghan/03.jpg,test
+train,Afghan,train/Afghan/022.jpg,R4: Duplicado exacto,test/Afghan/04.jpg,test
+train,Afghan,train/Afghan/092.jpg,R5: Casi duplicado (misma foto),train/Afghan/084.jpg,train
+train,African Wild Dog,train/African Wild Dog/101.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Airedale,train/Airedale/013.jpg,R4: Duplicado exacto,train/Airedale/010.jpg,train
+train,Airedale,train/Airedale/021.jpg,R4: Duplicado exacto,train/Airedale/010.jpg,train
+train,Airedale,train/Airedale/102.jpg,R4: Duplicado exacto,test/Airedale/09.jpg,test
+train,American Hairless,train/American Hairless/12.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,American Hairless,train/American Hairless/65.jpg,R5: Casi duplicado (misma foto),train/American Hairless/14.jpg,train
+train,American Spaniel,train/American Spaniel/35.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,American Spaniel,train/American Spaniel/37.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,American Spaniel,train/American Spaniel/42.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,American Spaniel,train/American Spaniel/48.jpg,R5: Casi duplicado (misma foto),train/American Spaniel/18.jpg,train
+train,American Spaniel,train/American Spaniel/53.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,American Spaniel,train/American Spaniel/61.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,American Spaniel,train/American Spaniel/68.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,American Spaniel,train/American Spaniel/77.jpg,R5: Casi duplicado (misma foto),test/American Spaniel/06.jpg,test
+train,American Spaniel,train/American Spaniel/86.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Basenji,train/Basenji/93.jpg,R5: Casi duplicado (misma foto),test/Basenji/03.jpg,test
+train,Bichon Frise,train/Bichon Frise/032.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Bichon Frise,train/Bichon Frise/066.jpg,R4: Duplicado exacto,test/Bichon Frise/02.jpg,test
+train,Bichon Frise,train/Bichon Frise/069.jpg,R4: Duplicado exacto,test/Bichon Frise/04.jpg,test
+train,Bichon Frise,train/Bichon Frise/072.jpg,R4: Duplicado exacto,test/Bichon Frise/02.jpg,test
+train,Bichon Frise,train/Bichon Frise/088.jpg,R4: Duplicado exacto,train/Bichon Frise/021.jpg,train
+train,Blenheim,train/Blenheim/022.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Blenheim,train/Blenheim/051.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Bloodhound,train/Bloodhound/094.jpg,R5: Casi duplicado (misma foto),train/Bloodhound/083.jpg,train
+train,Bluetick,train/Bluetick/101.jpg,R5: Casi duplicado (misma foto),train/Bluetick/097.jpg,train
+train,Border Collie,train/Border Collie/001.jpg,R4: Duplicado exacto,test/Border Collie/02.jpg,test
+train,Border Collie,train/Border Collie/004.jpg,R4: Duplicado exacto,test/Border Collie/03.jpg,test
+train,Border Collie,train/Border Collie/017.jpg,R4: Duplicado exacto,test/Border Collie/06.jpg,test
+train,Border Collie,train/Border Collie/033.jpg,R4: Duplicado exacto,valid/Border Collie/05.jpg,valid
+train,Border Collie,train/Border Collie/049.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Border Collie,train/Border Collie/090.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Borzoi,train/Borzoi/078.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Boston Terrier,train/Boston Terrier/29.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Boxer,train/Boxer/034.jpg,R4: Duplicado exacto,train/Boxer/015.jpg,train
+train,Boxer,train/Boxer/078.jpg,R4: Duplicado exacto,test/Boxer/01.jpg,test
+train,Boxer,train/Boxer/083.jpg,R4: Duplicado exacto,train/Boxer/033.jpg,train
+train,Boxer,train/Boxer/104.jpg,R5: Casi duplicado (misma foto),train/Boxer/015.jpg,train
+train,Boxer,train/Boxer/121.jpg,R5: Casi duplicado (misma foto),train/Boxer/015.jpg,train
+train,Boxer,train/Boxer/122.jpg,R5: Casi duplicado (misma foto),train/Boxer/033.jpg,train
+train,Bull Mastiff,train/Bull Mastiff/010.jpg,R4: Duplicado exacto,train/Bull Mastiff/004.jpg,train
+train,Bull Mastiff,train/Bull Mastiff/014.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Bull Mastiff,train/Bull Mastiff/031.jpg,R4: Duplicado exacto,test/Bull Mastiff/06.jpg,test
+train,Bull Mastiff,train/Bull Mastiff/036.jpg,R4: Duplicado exacto,test/Bull Mastiff/06.jpg,test
+train,Bull Mastiff,train/Bull Mastiff/037.jpg,R4: Duplicado exacto,train/Bull Mastiff/028.jpg,train
+train,Bull Mastiff,train/Bull Mastiff/042.jpg,R4: Duplicado exacto,train/Bull Mastiff/035.jpg,train
+train,Bull Mastiff,train/Bull Mastiff/046.jpg,R4: Duplicado exacto,train/Bull Mastiff/039.jpg,train
+train,Bull Mastiff,train/Bull Mastiff/047.jpg,R5: Casi duplicado (misma foto),train/Bull Mastiff/004.jpg,train
+train,Bulldog,train/Bulldog/017.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Bulldog,train/Bulldog/028.jpg,R5: Casi duplicado (misma foto),valid/Bulldog/02.jpg,valid
+train,Bulldog,train/Bulldog/033.jpg,R5: Casi duplicado (misma foto),train/Bulldog/030.jpg,train
+train,Bulldog,train/Bulldog/042.jpg,R4: Duplicado exacto,train/Bulldog/029.jpg,train
+train,Bulldog,train/Bulldog/090.jpg,R4: Duplicado exacto,test/Bulldog/09.jpg,test
+train,Bulldog,train/Bulldog/104.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Cairn,train/Cairn/083.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Cairn,train/Cairn/087.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Chihuahua,train/Chihuahua/005.jpg,R4: Duplicado exacto,test/Chihuahua/04.jpg,test
+train,Chinese Crested,train/Chinese Crested/040.jpg,R4: Duplicado exacto,valid/Chinese Crested/05.jpg,valid
+train,Chinese Crested,train/Chinese Crested/041.jpg,R4: Duplicado exacto,valid/Chinese Crested/06.jpg,valid
+train,Chinese Crested,train/Chinese Crested/042.jpg,R4: Duplicado exacto,valid/Chinese Crested/07.jpg,valid
+train,Chinese Crested,train/Chinese Crested/043.jpg,R4: Duplicado exacto,valid/Chinese Crested/08.jpg,valid
+train,Chinese Crested,train/Chinese Crested/050.jpg,R4: Duplicado exacto,valid/Chinese Crested/09.jpg,valid
+train,Chinese Crested,train/Chinese Crested/063.jpg,R4: Duplicado exacto,valid/Chinese Crested/10.jpg,valid
+train,Chinese Crested,train/Chinese Crested/092.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Clumber,train/Clumber/018.jpg,R4: Duplicado exacto,train/Clumber/008.jpg,train
+train,Clumber,train/Clumber/039.jpg,R4: Duplicado exacto,train/Clumber/008.jpg,train
+train,Clumber,train/Clumber/047.jpg,R4: Duplicado exacto,train/Clumber/019.jpg,train
+train,Clumber,train/Clumber/076.jpg,R5: Casi duplicado (misma foto),test/Clumber/08.jpg,test
+train,Cockapoo,train/Cockapoo/019.jpg,R5: Casi duplicado (misma foto),train/Cockapoo/005.jpg,train
+train,Cockapoo,train/Cockapoo/041.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Cockapoo,train/Cockapoo/073.jpg,R4: Duplicado exacto,train/Cockapoo/033.jpg,train
+train,Cockapoo,train/Cockapoo/096.jpg,R5: Casi duplicado (misma foto),train/Cockapoo/016.jpg,train
+train,Cockapoo,train/Cockapoo/108.jpg,R4: Duplicado exacto,train/Cockapoo/099.jpg,train
+train,Cockapoo,train/Cockapoo/113.jpg,R4: Duplicado exacto,train/Cockapoo/111.jpg,train
+train,Cockapoo,train/Cockapoo/128.jpg,R4: Duplicado exacto,train/Cockapoo/093.jpg,train
+train,Cocker,train/Cocker/047.jpg,R5: Casi duplicado (misma foto),train/Cocker/019.jpg,train
+train,Collie,train/Collie/001.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Collie,train/Collie/074.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Collie,train/Collie/114.jpg,R4: Duplicado exacto,train/Collie/104.jpg,train
+train,Dhole,train/Dhole/012.jpg,R4: Duplicado exacto,valid/Dhole/06.jpg,valid
+train,Dhole,train/Dhole/014.jpg,R5: Casi duplicado (misma foto),valid/Dhole/01.jpg,valid
+train,Dhole,train/Dhole/100.jpg,R4: Duplicado exacto,valid/Dhole/09.jpg,valid
+train,Dhole,train/Dhole/101.jpg,R5: Casi duplicado (misma foto),valid/Dhole/09.jpg,valid
+train,Dhole,train/Dhole/104.jpg,R4: Duplicado exacto,train/Dhole/014.jpg,train
+train,Dhole,train/Dhole/111.jpg,R4: Duplicado exacto,valid/Dhole/09.jpg,valid
+train,Dingo,train/Dingo/028.jpg,R4: Duplicado exacto,train/Dingo/023.jpg,train
+train,Dingo,train/Dingo/038.jpg,R5: Casi duplicado (misma foto),train/Dingo/001.jpg,train
+train,Dingo,train/Dingo/074.jpg,R4: Duplicado exacto,valid/Dingo/05.jpg,valid
+train,Doberman,train/Doberman/041.jpg,R4: Duplicado exacto,train/Doberman/011.jpg,train
+train,Doberman,train/Doberman/043.jpg,R4: Duplicado exacto,train/Doberman/006.jpg,train
+train,Doberman,train/Doberman/073.jpg,R5: Casi duplicado (misma foto),train/Doberman/026.jpg,train
+train,Doberman,train/Doberman/084.jpg,R4: Duplicado exacto,test/Doberman/02.jpg,test
+train,French Bulldog,train/French Bulldog/07.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,French Bulldog,train/French Bulldog/85.jpg,R3: Brillo < 15.0 o Brillo > 240.0,,
+train,French Bulldog,train/French Bulldog/93.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,German Sheperd,train/German Sheperd/018.jpg,R4: Duplicado exacto,train/German Sheperd/010.jpg,train
+train,Golden Retriever,train/Golden Retriever/048.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Great Dane,train/Great Dane/119.jpg,R4: Duplicado exacto,test/Great Dane/10.jpg,test
+train,Greyhound,train/Greyhound/071.jpg,R4: Duplicado exacto,test/Greyhound/05.jpg,test
+train,Greyhound,train/Greyhound/096.jpg,R4: Duplicado exacto,test/Greyhound/08.jpg,test
+train,Groenendael,train/Groenendael/031.jpg,R4: Duplicado exacto,valid/Groenendael/02.jpg,valid
+train,Groenendael,train/Groenendael/042.jpg,R4: Duplicado exacto,test/Groenendael/03.jpg,test
+train,Groenendael,train/Groenendael/113.jpg,R5: Casi duplicado (misma foto),train/Groenendael/107.jpg,train
+train,Irish Spaniel,train/Irish Spaniel/036.jpg,R5: Casi duplicado (misma foto),train/American Spaniel/61.jpg,train
+train,Irish Spaniel,train/Irish Spaniel/100.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Irish Spaniel,train/Irish Spaniel/103.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Irish Spaniel,train/Irish Spaniel/105.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Irish Spaniel,train/Irish Spaniel/114.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Irish Spaniel,train/Irish Spaniel/118.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Japanese Spaniel,train/Japanese Spaniel/028.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Japanese Spaniel,train/Japanese Spaniel/062.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Labradoodle,train/Labradoodle/007.jpg,R4: Duplicado exacto,valid/Labradoodle/01.jpg,valid
+train,Labradoodle,train/Labradoodle/010.jpg,R4: Duplicado exacto,valid/Labradoodle/02.jpg,valid
+train,Labradoodle,train/Labradoodle/013.jpg,R4: Duplicado exacto,valid/Labradoodle/03.jpg,valid
+train,Labradoodle,train/Labradoodle/016.jpg,R4: Duplicado exacto,valid/Labradoodle/04.jpg,valid
+train,Labradoodle,train/Labradoodle/018.jpg,R4: Duplicado exacto,valid/Labradoodle/05.jpg,valid
+train,Labradoodle,train/Labradoodle/019.jpg,R4: Duplicado exacto,valid/Labradoodle/07.jpg,valid
+train,Labradoodle,train/Labradoodle/020.jpg,R4: Duplicado exacto,valid/Labradoodle/08.jpg,valid
+train,Labradoodle,train/Labradoodle/024.jpg,R4: Duplicado exacto,valid/Labradoodle/09.jpg,valid
+train,Labradoodle,train/Labradoodle/025.jpg,R4: Duplicado exacto,valid/Labradoodle/10.jpg,valid
+train,Labradoodle,train/Labradoodle/030.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Labradoodle,train/Labradoodle/036.jpg,R5: Casi duplicado (misma foto),train/Labradoodle/003.jpg,train
+train,Labrador,train/Labrador/037.jpg,R4: Duplicado exacto,test/Labrador/01.jpg,test
+train,Labrador,train/Labrador/102.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Labrador,train/Labrador/103.jpg,R4: Duplicado exacto,train/Labrador/094.jpg,train
+train,Lhasa,train/Lhasa/014.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Lhasa,train/Lhasa/025.jpg,R5: Casi duplicado (misma foto),valid/Lhasa/09.jpg,valid
+train,Lhasa,train/Lhasa/045.jpg,R4: Duplicado exacto,train/Lhasa/023.jpg,train
+train,Lhasa,train/Lhasa/070.jpg,R4: Duplicado exacto,train/Lhasa/037.jpg,train
+train,Lhasa,train/Lhasa/102.jpg,R4: Duplicado exacto,train/Lhasa/101.jpg,train
+train,Lhasa,train/Lhasa/116.jpg,R4: Duplicado exacto,test/Lhasa/01.jpg,test
+train,Lhasa,train/Lhasa/117.jpg,R4: Duplicado exacto,test/Lhasa/01.jpg,test
+train,Lhasa,train/Lhasa/123.jpg,R4: Duplicado exacto,test/Lhasa/02.jpg,test
+train,Lhasa,train/Lhasa/124.jpg,R4: Duplicado exacto,test/Lhasa/02.jpg,test
+train,Lhasa,train/Lhasa/127.jpg,R4: Duplicado exacto,train/Lhasa/126.jpg,train
+train,Lhasa,train/Lhasa/138.jpg,R4: Duplicado exacto,test/Lhasa/03.jpg,test
+train,Lhasa,train/Lhasa/141.jpg,R4: Duplicado exacto,train/Lhasa/140.jpg,train
+train,Lhasa,train/Lhasa/144.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Lhasa,train/Lhasa/145.jpg,R4: Duplicado exacto,train/Lhasa/144.jpg,train
+train,Lhasa,train/Lhasa/147.jpg,R4: Duplicado exacto,train/Lhasa/146.jpg,train
+train,Lhasa,train/Lhasa/152.jpg,R4: Duplicado exacto,test/Lhasa/04.jpg,test
+train,Lhasa,train/Lhasa/156.jpg,R4: Duplicado exacto,test/Lhasa/06.jpg,test
+train,Lhasa,train/Lhasa/157.jpg,R4: Duplicado exacto,test/Lhasa/07.jpg,test
+train,Lhasa,train/Lhasa/158.jpg,R4: Duplicado exacto,test/Lhasa/07.jpg,test
+train,Lhasa,train/Lhasa/159.jpg,R4: Duplicado exacto,test/Lhasa/08.jpg,test
+train,Lhasa,train/Lhasa/160.jpg,R4: Duplicado exacto,test/Lhasa/09.jpg,test
+train,Lhasa,train/Lhasa/165.jpg,R4: Duplicado exacto,train/Lhasa/164.jpg,train
+train,Lhasa,train/Lhasa/174.jpg,R4: Duplicado exacto,test/Lhasa/10.jpg,test
+train,Lhasa,train/Lhasa/175.jpg,R4: Duplicado exacto,test/Lhasa/10.jpg,test
+train,Maltese,train/Maltese/040.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Maltese,train/Maltese/047.jpg,R4: Duplicado exacto,test/Maltese/10.jpg,test
+train,Maltese,train/Maltese/120.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Mex Hairless,train/Mex Hairless/90.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Pit Bull,train/Pit Bull/026.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Pit Bull,train/Pit Bull/065.jpg,R4: Duplicado exacto,train/Pit Bull/064.jpg,train
+train,Pit Bull,train/Pit Bull/066.jpg,R4: Duplicado exacto,valid/Pit Bull/03.jpg,valid
+train,Pit Bull,train/Pit Bull/067.jpg,R4: Duplicado exacto,valid/Pit Bull/03.jpg,valid
+train,Pit Bull,train/Pit Bull/068.jpg,R4: Duplicado exacto,valid/Pit Bull/04.jpg,valid
+train,Pomeranian,train/Pomeranian/093.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Poodle,train/Poodle/016.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Poodle,train/Poodle/028.jpg,R4: Duplicado exacto,valid/Poodle/01.jpg,valid
+train,Poodle,train/Poodle/029.jpg,R4: Duplicado exacto,valid/Poodle/02.jpg,valid
+train,Poodle,train/Poodle/032.jpg,R4: Duplicado exacto,valid/Poodle/05.jpg,valid
+train,Poodle,train/Poodle/042.jpg,R5: Casi duplicado (misma foto),train/Poodle/035.jpg,train
+train,Poodle,train/Poodle/081.jpg,R2: Borrosa (Laplaciano < 40),,
+train,Pug,train/Pug/021.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Rhodesian,train/Rhodesian/016.jpg,R4: Duplicado exacto,valid/Rhodesian/04.jpg,valid
+train,Rhodesian,train/Rhodesian/021.jpg,R4: Duplicado exacto,train/Rhodesian/018.jpg,train
+train,Rhodesian,train/Rhodesian/040.jpg,R4: Duplicado exacto,test/Rhodesian/07.jpg,test
+train,Rhodesian,train/Rhodesian/046.jpg,R4: Duplicado exacto,test/Rhodesian/09.jpg,test
+train,Rhodesian,train/Rhodesian/073.jpg,R4: Duplicado exacto,test/Rhodesian/10.jpg,test
+train,Rhodesian,train/Rhodesian/103.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Rhodesian,train/Rhodesian/105.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Rhodesian,train/Rhodesian/123.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Saint Bernard,train/Saint Bernard/68.jpg,R4: Duplicado exacto,test/Saint Bernard/01.jpg,test
+train,Scotch Terrier,train/Scotch Terrier/039.jpg,R5: Casi duplicado (misma foto),train/Scotch Terrier/001.jpg,train
+train,Scotch Terrier,train/Scotch Terrier/040.jpg,R4: Duplicado exacto,valid/Scotch Terrier/01.jpg,valid
+train,Scotch Terrier,train/Scotch Terrier/043.jpg,R4: Duplicado exacto,train/Scotch Terrier/003.jpg,train
+train,Scotch Terrier,train/Scotch Terrier/047.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Scotch Terrier,train/Scotch Terrier/050.jpg,R5: Casi duplicado (misma foto),train/Scotch Terrier/001.jpg,train
+train,Scotch Terrier,train/Scotch Terrier/053.jpg,R4: Duplicado exacto,train/Scotch Terrier/001.jpg,train
+train,Shih-Tzu,train/Shih-Tzu/018.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Shih-Tzu,train/Shih-Tzu/025.jpg,R5: Casi duplicado (misma foto),train/Shih-Tzu/014.jpg,train
+train,Shih-Tzu,train/Shih-Tzu/196.jpg,R4: Duplicado exacto,train/Shih-Tzu/025.jpg,train
+train,Shih-Tzu,train/Shih-Tzu/197.jpg,R4: Duplicado exacto,valid/Shih-Tzu/08.jpg,valid
+train,Vizsla,train/Vizsla/08.jpg,R4: Duplicado exacto,test/Vizsla/10.jpg,test
+train,Vizsla,train/Vizsla/15.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Vizsla,train/Vizsla/16.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Vizsla,train/Vizsla/45.jpg,R4: Duplicado exacto,valid/Vizsla/03.jpg,valid
+train,Vizsla,train/Vizsla/51.jpg,R5: Casi duplicado (misma foto),train/Vizsla/44.jpg,train
+train,Vizsla,train/Vizsla/56.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Vizsla,train/Vizsla/59.jpg,R6: Grupo con etiquetas de raza conflictivas,,
+train,Vizsla,train/Vizsla/72.jpg,R4: Duplicado exacto,train/Vizsla/67.jpg,train
+valid,African Wild Dog,valid/African Wild Dog/06.jpg,R5: Casi duplicado (misma foto),test/African Wild Dog/03.jpg,test
+valid,Bichon Frise,valid/Bichon Frise/01.jpg,R4: Duplicado exacto,test/Bichon Frise/02.jpg,test
+valid,Bulldog,valid/Bulldog/10.jpg,R5: Casi duplicado (misma foto),valid/Bulldog/02.jpg,valid
+valid,Doberman,valid/Doberman/02.jpg,R4: Duplicado exacto,test/Doberman/02.jpg,test
+valid,Greyhound,valid/Greyhound/06.jpg,R4: Duplicado exacto,test/Greyhound/02.jpg,test
+valid,Malinois,valid/Malinois/01.jpg,R4: Duplicado exacto,test/Malinois/07.jpg,test
+valid,Rhodesian,valid/Rhodesian/10.jpg,R4: Duplicado exacto,test/Rhodesian/08.jpg,test
+valid,Vizsla,valid/Vizsla/06.jpg,R4: Duplicado exacto,test/Vizsla/02.jpg,test
+valid,Vizsla,valid/Vizsla/10.jpg,R4: Duplicado exacto,valid/Vizsla/03.jpg,valid
